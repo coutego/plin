@@ -185,13 +185,75 @@
       :handler beans-handler
       :spec map?}]}))
 
+;; =============================================================================
+;; Bean Redefinition Logic (moved from plin.bean-redefs)
+;; =============================================================================
+
+(defn- replace-placeholder
+  "Recursively replaces a placeholder keyword in a bean specification."
+  [spec placeholder replacement]
+  (cond
+    (vector? spec)
+    (mapv (fn [arg] (if (= arg placeholder) replacement arg)) spec)
+
+    (and (map? spec) (:constructor spec))
+    (update spec :constructor replace-placeholder placeholder replacement)
+
+    :else
+    spec))
+
+(defn- process-single-bean-redef
+  "Process a single bean redefinition."
+  [current-beans target-key redef-config]
+  (let [config (if (and (map? redef-config)
+                        (or (:spec redef-config) (:placeholder redef-config)))
+                 redef-config
+                 {:spec redef-config})
+        spec (:spec config)
+        placeholder (or (:placeholder config) :orig)
+        original-def (get current-beans target-key)]
+
+    (if-not original-def
+      (do
+        (println "WARNING: Cannot redefine bean" target-key
+                 "- original not found. Skipping redefinition.")
+        current-beans)
+
+      (let [orig-key (keyword (namespace target-key)
+                              (str (name target-key) "-ORIG-" (rand-int 100000)))
+            new-spec (replace-placeholder spec placeholder orig-key)]
+
+        (-> current-beans
+            (assoc orig-key original-def)
+            (assoc target-key new-spec))))))
+
+(defn- get-bean-redefs-from-plugin
+  "Extract bean-redefs from a plugin, checking both root level and contributions."
+  [plugin]
+  (or (get-in plugin [:contributions :bean-redefs])
+      (get plugin :bean-redefs)))
+
+(defn- apply-bean-redefs
+  "Apply all bean redefinitions from plugins to the beans map."
+  [beans plugins]
+  (let [all-redefs (keep get-bean-redefs-from-plugin plugins)]
+    (reduce (fn [current-beans redefs-map]
+              (if (and redefs-map (map? redefs-map))
+                (reduce-kv process-single-bean-redef current-beans redefs-map)
+                current-beans))
+            beans
+            all-redefs)))
+
+;; =============================================================================
+
 (defn load-plugins
   "Loads a list of plugins and creates a new Injectable container.
    
-   This is the core function for bootstrapping the application. It performs two main steps:
+   This is the core function for bootstrapping the application. It performs three main steps:
    1.  **Pluggable Phase**: It uses `pluggable.core/load-plugins` to process the plugin list,
        resolve dependencies, and execute extension handlers (including the `:beans` handler).
-   2.  **Injectable Phase**: It takes the aggregated bean definitions from step 1 and uses
+   2.  **Bean Redefinition Phase**: Processes any bean redefinitions to wrap existing beans.
+   3.  **Injectable Phase**: It takes the final bean definitions and uses
        `injectable.core/create-container` to build the dependency injection container.
    
    It also injects a special bean `::definitions` containing the raw bean definitions,
@@ -203,10 +265,14 @@
    **Returns:**
    *   The constructed Injectable container (a map of instantiated beans)."
   [plugins]
-  (let [{:keys [beans]} (plug/load-plugins
-                         (vec (concat [injectable-plugin] plugins)))
+  (let [;; Add injectable-plugin first
+        plugins-with-injectable (vec (concat [injectable-plugin] plugins))
+        ;; Run pluggable to process extensions and collect beans
+        db (plug/load-plugins plugins-with-injectable)
+        ;; Apply bean redefinitions after all beans are collected
+        beans-with-redefs (apply-bean-redefs (:beans db) plugins)
         ;; Inject the definitions map into the container so tools can inspect it
-        beans-with-defs (assoc beans ::definitions [:= beans])
+        beans-with-defs (assoc beans-with-redefs ::definitions [:= beans-with-redefs])
         container (inj/create-container beans-with-defs)]
     container))
 
