@@ -29,19 +29,19 @@
     :url "http://localhost:3000"}
    
    {:id :node-tui
-    :name "Node.js Terminal UI"
-    :description "Todo app in terminal using nbb (native ClojureScript for Node.js)"
-    :type :terminal
-    :path "examples/node-tui"
-    :cmd ["npx" "nbb" "-cp" "src:deps" "src/todo_node_tui/main.cljs"]}
-   
-   {:id :node-server
-    :name "Node.js HTTP Server"
-    :description "Todo app as HTTP server using nbb + Node.js http module"
-    :type :server
-    :path "examples/node-server"
-    :cmd ["npx" "nbb" "-cp" "src:deps" "src/todo_node_server/main.cljs"]
-    :url "http://localhost:3000"}])
+     :name "Node.js Terminal UI"
+     :description "Todo app in terminal using nbb (native ClojureScript for Node.js)"
+     :type :terminal
+     :path "examples/node-tui"
+     :cmd ["npx" "nbb" "-cp" "src:../shared/src" "src/todo_node_tui/main.cljs"]}
+    
+     {:id :node-server
+     :name "Node.js HTTP Server"
+     :description "Todo app as HTTP server using nbb + Node.js http module"
+     :type :server
+     :path "examples/node-server"
+     :cmd ["npx" "nbb" "-cp" "src:../shared/src" "src/todo_node_server/main.cljs"]
+     :url "http://localhost:3000"}])
 
 (defn print-header []
   (println)
@@ -102,7 +102,7 @@
       (if (= :node-tui (:id example))
         (do
           (println "     cd examples/node-tui")
-          (println "     npx nbb -cp \"src:deps\" src/todo_node_tui/main.cljs"))
+          (println "     npx nbb -cp \"src:../shared/src\" src/todo_node_tui/main.cljs"))
         (do
           (println "     cd examples/jvm-tui")
           (println "     clojure -M:run")))
@@ -188,35 +188,14 @@
     (:node-tui :node-server)
     (do
       (println "Setting up Node.js example...")
-      (let [deps-dir (str (:path example) "/deps")
-            ;; Check if deps folder exists AND has content
-            deps-populated? (and (fs/exists? deps-dir)
-                                 (seq (fs/list-dir deps-dir)))]
-        (if deps-populated?
-          (do (println "✓ Dependencies already set up")
+      (println "Installing npm packages...")
+      (let [npm-result (p/sh {:dir (:path example)} "npm" "install")]
+        (if (= 0 (:exit npm-result))
+          (do (println "✓ npm packages installed")
               true)
-          (do
-            (println "Creating deps directory...")
-            (fs/create-dirs deps-dir)
-            (println "Copying dependencies...")
-            (let [copy-result (p/sh "bash" "-c" 
-                                    (str "cp -r ../injectable/src/injectable " deps-dir "/ && "
-                                         "cp -r ../pluggable/src/pluggable " deps-dir "/ && "
-                                         "cp -r src/plin " deps-dir "/ && "
-                                         "cp -r examples/common/src/todo " deps-dir "/"))]
-              (if (= 0 (:exit copy-result))
-                (do (println "✓ Dependencies copied")
-                    (println "Installing npm packages...")
-                    (let [npm-result (p/sh {:dir (:path example)} "npm" "install")]
-                      (if (= 0 (:exit npm-result))
-                        (do (println "✓ npm packages installed")
-                            true)
-                        (do (println "✗ npm install failed:")
-                            (println (:err npm-result))
-                            false))))
-                (do (println "✗ Failed to copy dependencies:")
-                    (println (:err copy-result))
-                    false)))))))
+          (do (println "✗ npm install failed:")
+              (println (:err npm-result))
+              false))))
     
     true))
 

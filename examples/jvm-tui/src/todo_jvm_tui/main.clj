@@ -7,13 +7,13 @@
       - Wraps pure domain functions as injectable beans
       - No dependencies - the foundation layer
    
-   2. INTERFACE PLUGINS (:todo/persistence)
+   2. INTERFACE PLUGINS (:todo/persistence, :todo/deadlines, :todo/calendar)
       - Define contracts/APIs as beans
       - Depend on :todo/domain for business logic
    
-3. STORAGE PLUGINS (disk-store)
-       - JVM-specific file-based persistence using EDN format
-       - Data persists across application restarts
+ 3. STORAGE PLUGINS (disk-store)
+        - JVM-specific file-based persistence using EDN format
+        - Data persists across application restarts
    
    4. PLATFORM PLUGINS (lanterna-ui)
        - Platform-specific implementations
@@ -31,16 +31,19 @@
    
    Controls:
      ↑/↓      - Navigate tasks
-     n        - Add new task
+     n        - Add new task (with optional due date)
      t        - Toggle task completion
      d        - Delete task
      c        - Clear completed tasks
-     a/A/C    - Filter All/Active/Completed
+     v        - Toggle List/Calendar view
+     a/A/O/C  - Filter All/Active/Overdue/Completed
      q/ESC    - Quit"
   (:require [plin.boot :as boot]
             ;; Common plugins (order matters for the dependency graph)
             [todo.plugins.domain :as domain]
             [todo.plugins.persistence :as persistence]
+            [todo.plugins.deadlines :as deadlines]
+            [todo.plugins.calendar :as calendar]
             [todo.plugins.disk-store :as disk-store]
             ;; Platform-specific plugins
             [todo-jvm-tui.plugins.lanterna-ui :as lanterna-ui]
@@ -55,7 +58,11 @@
         |
         +---> persistence ---> disk-store (overrides persistence beans, uses EDN file)
         |
-        +---> lanterna-ui (uses domain and persistence beans)"
+        +---> deadlines
+        |        |
+        +--------+---> calendar
+                          |
+                          +---> lanterna-ui (uses domain, persistence, deadlines, calendar beans)"
   [& _args]
   (println "Starting Todo JVM TUI...")
   (println "Loading...")
@@ -63,9 +70,11 @@
                  ;; Pure business logic, no dependencies
                  domain/plugin
 
-                 ;; === Layer 2: Interfaces ===
+                 ;; === Layer 2: Interfaces & Utilities ===
                  ;; Define contracts, depend on domain
                  persistence/plugin    ; Defines load-fn, store-fn, delete-fn
+                 deadlines/plugin      ; Defines due-date-status, format-due-date, etc.
+                 calendar/plugin       ; Defines calendar-data, render-calendar, etc.
 
                  ;; === Layer 3: Storage Implementation ===
                  ;; Override persistence with file-based storage

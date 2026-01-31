@@ -10,7 +10,7 @@ This example demonstrates a Todo application running in the terminal using:
 - **Plin** for plugin architecture
 - **nbb** (native ClojureScript for Node.js)
 - **Ink** (React for terminals) for the UI
-- **In-memory storage** (atoms) for persistence
+- **File-based persistence** (EDN file) for data storage
 - **Keyboard navigation** for interaction
 
 * Architecture
@@ -22,7 +22,7 @@ This example demonstrates a Todo application running in the terminal using:
 | ~todo.plugins.persistence~ | Defines persistence interface | [[file:../common/src/todo/plugins/persistence.cljc][Common module]] |
 | ~todo.plugins.deadlines~ | Deadline utilities | [[file:../common/src/todo/plugins/deadlines.cljc][Common module]] |
 | ~todo.plugins.calendar~ | Calendar view data | [[file:../common/src/todo/plugins/calendar.cljc][Common module]] |
-| ~todo-node-tui.plugins.memory-store~ | In-memory atom storage | [[file:src/todo_node_tui/plugins/memory_store.cljs][plugins/memory_store.cljs]] |
+| ~todo-node-tui.plugins.disk-store~ | File-based EDN storage | [[file:src/todo_node_tui/plugins/disk_store.cljs][plugins/disk_store.cljs]] |
 | ~todo-node-tui.plugins.terminal-ui~ | Ink-based TUI | [[file:src/todo_node_tui/plugins/terminal_ui.cljs][plugins/terminal_ui.cljs]] |
 
 ** Domain
@@ -58,16 +58,8 @@ If you prefer to run manually:
 cd examples/node-tui
 npm install
 
-# Dependencies are automatically copied to deps/ by the run-example script
-# Or manually:
-mkdir -p deps
-cp -r ../../injectable/src/injectable deps/
-cp -r ../../pluggable/src/pluggable deps/
-cp -r ../../src/plin deps/
-cp -r ../common/src/todo deps/
-
-# Run
-npx nbb -cp "src:deps" src/todo_node_tui/main.cljs
+# Run (uses shared dependencies from ../shared/src/)
+npx nbb -cp "src:../shared/src" src/todo_node_tui/main.cljs
 #+END_SRC
 
 * Controls
@@ -140,9 +132,7 @@ Uses a global atom with React's ~useEffect~ to watch for changes and force re-re
 
 ** Persistence
 
-Uses a simple ClojureScript atom to store the ~TaskList~. On application exit, all data is lost. This demonstrates the persistence extension point - a real implementation could use:
-- File-based storage (EDN, JSON)
-- SQLite database
+Uses a file-based EDN storage mechanism to persist the ~TaskList~ to disk. Data is automatically saved on every change and loaded on startup, ensuring persistence across application restarts. The storage file is located at ~data/todos.edn~.
 
 * Comparison with JVM TUI
 

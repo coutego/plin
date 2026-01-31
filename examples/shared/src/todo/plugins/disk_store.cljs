@@ -1,113 +1,94 @@
 (ns todo.plugins.disk-store
-  "File-based storage implementation for the Todo app (JVM only).
+  "File-based storage implementation for Node.js (nbb).
    
-   This plugin demonstrates FULL DEPENDENCY INJECTION:
-   - The file path is a bean (::data-file) that can be overridden
-   - All functions receive dependencies via DI
-   - Uses EDN format with date serialization for human-readable persistence
+   This plugin provides file-based persistence using EDN format for Node.js
+   applications (node-tui and node-server).
+   
+   Data is stored in examples/shared/todo-data.edn so all Node.js examples
+   share the same data file.
    
    Dependencies:
    - :todo/persistence - the interface this plugin implements
    - :todo/domain - for create-task-list (injected)
    
    Beans defined:
-   - ::data-file - Path to the data file (default: \"todo-data.edn\")
+   - ::data-file - Path to the data file (default: examples/shared/todo-data.edn)
    - Overrides :todo.plugins.persistence/load-fn
    - Overrides :todo.plugins.persistence/store-fn
-   - Overrides :todo.plugins.persistence/delete-fn
-   
-   This plugin is JVM-only (.clj) as it uses java.io for file operations."
-  (:require [plin.core :as pi]
+   - Overrides :todo.plugins.persistence/delete-fn"
+  (:require ["fs" :as fs]
+            ["path" :as path]
             [clojure.edn :as edn]
-            [clojure.java.io :as io])
-  (:import [java.time LocalDate Instant]
-           [java.time.format DateTimeParseException]))
+            [clojure.string :as str]
+            [plin.core :as pi]))
 
 ;; =============================================================================
 ;; Serialization Helpers
 ;; =============================================================================
 
 (defn- serialize-task
-  "Converts a task record to a plain map, converting dates to strings."
+  "Converts a task to a serializable map, converting dates to ISO strings."
   [task]
-  (-> (into {} task)  ;; Convert record to plain map
-      (update :created-at #(when % (.toString %)))
-      (update :due-date #(when % (.toString %)))))
+  (-> (into {} task)
+      (update :due-date #(when % (.toISOString %)))))
 
 (defn- serialize-task-list
-  "Converts a task-list record to a plain map."
+  "Converts a task-list to a serializable map."
   [task-list]
   {:tasks (into {} (map (fn [[k v]] [k (serialize-task v)]) (:tasks task-list)))
    :next-id (:next-id task-list)})
 
-(defn- parse-instant
-  "Parses an Instant from a string, returns nil on failure."
-  [s]
-  (when s
-    (try
-      (Instant/parse s)
-      (catch DateTimeParseException _ nil))))
-
-(defn- parse-local-date
-  "Parses a LocalDate from a string, returns nil on failure."
-  [s]
-  (when s
-    (try
-      (LocalDate/parse s)
-      (catch DateTimeParseException _ nil))))
-
 (defn- deserialize-task
-  "Converts a serialized task map back to proper types."
+  "Converts a serialized task back to proper types, parsing date strings."
   [task]
   (-> task
-      (update :created-at parse-instant)
-      (update :due-date parse-local-date)))
+      (update :due-date #(when % (js/Date. %)))))
 
 (defn- deserialize-task-list
-  "Converts a serialized task-list map back to proper types."
+  "Converts a serialized task-list back to proper types."
   [data]
   (-> data
       (update :tasks #(into {} (map (fn [[k v]] [k (deserialize-task v)]) %)))))
 
 ;; =============================================================================
-;; Factory Functions (all receive dependencies via DI)
+;; Factory Functions
 ;; =============================================================================
 
 (defn make-data-file
-  "Factory: creates the default data file path.
-   Can be overridden to use a different location."
+  "Factory: creates the data file path.
+   Uses examples/shared/todo-data.edn so all Node.js examples share the same file."
   []
-  "todo-data.edn")
+  (let [shared-dir (path/resolve ".." "shared")]
+    (path/join shared-dir "todo-data.edn")))
 
 (defn make-load-fn
   "Factory: creates load function with injected data-file and create-task-list."
   [data-file create-task-list]
   (fn []
-    (let [file (io/file data-file)]
-      (if (.exists file)
-        (try
-          (-> (slurp file)
-              (edn/read-string)
-              (deserialize-task-list))
-          (catch Exception e
-            (println "Warning: Could not read" data-file "- starting fresh:" (.getMessage e))
-            (create-task-list)))
-        (create-task-list)))))
+    (if (fs/existsSync data-file)
+      (try
+        (let [content (fs/readFileSync data-file "utf8")]
+          (-> (edn/read-string content)
+              (deserialize-task-list)))
+        (catch :default e
+          (println "Warning: Could not read" data-file "- starting fresh:" (.-message e))
+          (create-task-list)))
+      (create-task-list))))
 
 (defn make-store-fn
   "Factory: creates store function with injected data-file."
   [data-file]
   (fn [task-list]
-    (let [serializable (serialize-task-list task-list)]
-      (spit data-file (pr-str serializable)))))
+    (let [serializable (serialize-task-list task-list)
+          content (pr-str serializable)]
+      (fs/writeFileSync data-file content "utf8"))))
 
 (defn make-delete-fn
   "Factory: creates delete function with injected data-file."
   [data-file]
   (fn []
-    (let [file (io/file data-file)]
-      (when (.exists file)
-        (.delete file)))))
+    (when (fs/existsSync data-file)
+      (fs/unlinkSync data-file))))
 
 ;; =============================================================================
 ;; Plugin Definition
@@ -116,13 +97,13 @@
 (def plugin
   (pi/plugin
    {:id :todo/disk-store
-    :doc "File-based persistence using EDN format (JVM only)."
+    :doc "File-based persistence using EDN format for Node.js."
     :deps [:todo/persistence]
     
     :beans
     {;; The data file path is a bean - can be overridden for different locations
      ::data-file
-     ^{:doc "Path to the EDN data file. Override to use a different location."}
+     ^{:doc "Path to the EDN data file. Default: examples/shared/todo-data.edn"}
      [make-data-file]
 
      ;; Override persistence interface beans

@@ -12,9 +12,9 @@
       - Depend on :todo/domain for business logic
       - Provide default implementations
    
-3. REUSABLE PLUGINS (memory-store)
+3. STORAGE PLUGINS (disk-store) - File-based storage using EDN format
        - Cross-platform plugins that can be used by any example
-       - Override interface beans with reusable implementations
+       - Override interface beans with file-based storage implementations
    
    4. PLATFORM PLUGINS (http-server, calendar-html)
        - Platform-specific implementations
@@ -38,7 +38,7 @@
             [todo.plugins.persistence :as persistence]
             [todo.plugins.deadlines :as deadlines]
             [todo.plugins.calendar :as calendar]
-            [todo.plugins.memory-store :as memory-store]
+            [todo.plugins.disk-store :as disk-store]
             ;; Platform-specific plugins
             [todo-node-server.plugins.http-server :as http-server]
             [todo-node-server.plugins.calendar-html :as calendar-html]))
@@ -50,7 +50,7 @@
    
      domain (no deps)
         |
-        +---> persistence ---> memory-store (overrides persistence beans)
+        +---> persistence ---> disk-store (overrides persistence beans with file storage)
         |
         +---> deadlines
         |        |
@@ -71,7 +71,7 @@
 
                  ;; === Layer 3: Platform Implementations ===
                  ;; Override beans with Node.js-specific implementations
-                 memory-store/plugin   ; Overrides persistence beans with atom storage
+                 disk-store/plugin     ; Overrides persistence beans with EDN file storage
                  http-server/plugin    ; HTTP server using Node.js http module
                  calendar-html/plugin] ; Overrides calendar rendering for HTML
         container (pi/load-plugins plugins)]

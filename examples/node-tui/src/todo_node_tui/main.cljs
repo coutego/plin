@@ -12,9 +12,9 @@
       - Depend on :todo/domain for business logic
       - Provide default implementations
    
-3. REUSABLE PLUGINS (memory-store)
-       - Cross-platform plugins that can be used by any example
-       - Override interface beans with reusable implementations
+ 3. STORAGE PLUGINS (disk-store)
+        - File-based storage using EDN format
+        - All Node.js examples share the same data file
    
    4. PLATFORM PLUGINS (terminal-ui)
        - Platform-specific implementations
@@ -46,7 +46,7 @@
             [todo.plugins.persistence :as persistence]
             [todo.plugins.deadlines :as deadlines]
             [todo.plugins.calendar :as calendar]
-            [todo.plugins.memory-store :as memory-store]
+            [todo.plugins.disk-store :as disk-store]
             ;; Platform-specific plugins
             [todo-node-tui.plugins.terminal-ui :as terminal-ui]))
 
@@ -57,7 +57,7 @@
    
      domain (no deps)
         |
-        +---> persistence ---> memory-store (overrides persistence beans)
+         +---> persistence ---> disk-store (overrides persistence beans with file storage)
         |
         +---> deadlines
         |        |
@@ -78,7 +78,7 @@
 
                  ;; === Layer 3: Platform Implementations ===
                  ;; Override beans with Node.js-specific implementations
-                 memory-store/plugin   ; Overrides persistence beans with atom storage
+                  disk-store/plugin     ; Overrides persistence beans with EDN file storage
                  terminal-ui/plugin]   ; Terminal UI using Ink (React for terminals)
         container (pi/load-plugins plugins)]
     (println "Container created with keys:" (keys container))

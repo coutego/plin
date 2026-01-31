@@ -15,7 +15,8 @@
    - Overrides :todo.plugins.persistence/load-fn
    - Overrides :todo.plugins.persistence/store-fn
    - Overrides :todo.plugins.persistence/delete-fn"
-  (:require [plin.core :as pi]))
+  (:require [plin.core :as plin]
+            [todo.plugins.persistence :as persistence]))
 
 ;; =============================================================================
 ;; Factory Functions (all receive dependencies via DI)
@@ -35,18 +36,23 @@
       (try
         (let [parsed (js/JSON.parse stored)
               data (js->clj parsed :keywordize-keys true)]
-          ;; Reconstruct the task-list structure
-          (if (and (:tasks data) (seq (:tasks data)))
-            {:tasks (into {} 
-                          (map (fn [[k v]]
-                                 [(if (string? k) (js/parseInt k) k)
-                                  (-> v
-                                      (update :id #(if (string? %) (js/parseInt %) %)))])
-                               (:tasks data)))
-             :next-id (or (:next-id data) 
-                          (inc (apply max (map #(if (string? %) (js/parseInt %) %) 
-                                               (keys (:tasks data))))))}
-            (create-task-list)))
+           ;; Reconstruct the task-list structure
+           ;; Parse due-date strings back to Date objects
+           (if (and (:tasks data) (seq (:tasks data)))
+             {:tasks (into {} 
+                           (map (fn [[k v]]
+                                  [(if (string? k) (js/parseInt k) k)
+                                   (-> v
+                                       (update :id #(if (string? %) (js/parseInt %) %))
+                                       (update :due-date #(when %
+                                                            (if (string? %)
+                                                              (js/Date. %)
+                                                              %))))])
+                                (:tasks data)))
+              :next-id (or (:next-id data) 
+                           (inc (apply max (map #(if (string? %) (js/parseInt %) %) 
+                                                (keys (:tasks data))))))}
+             (create-task-list)))
         (catch :default e
           (js/console.warn "Could not parse localStorage data, starting fresh:" e)
           (create-task-list)))
@@ -69,10 +75,10 @@
 ;; =============================================================================
 
 (def plugin
-  (pi/plugin
+  (plin.core/plugin
    {:id :todo/local-storage
     :doc "Browser localStorage persistence implementation with proper DI."
-    :deps [:todo/persistence]
+     :deps [persistence/plugin]
     
     :beans
     {;; The storage key is a bean - can be overridden for different apps

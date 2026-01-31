@@ -27,18 +27,20 @@
    - Reagent component receives dependencies via factory closure pattern
    - The dependency graph is explicit and visible
    
-   Usage:
+   Usage (Scittle - no build):
      cd examples/browser-reagent
-     npx shadow-cljs watch app
+     bb generate.bb
+     open index.html
    
-   Then open http://localhost:8080 in your browser."
+   Usage (shadow-cljs - with build):
+     cd examples/browser-reagent
+     npx shadow-cljs watch app"
   (:require [plin.boot :as boot]
-            ;; Common plugins (order matters for the dependency graph)
             [todo.plugins.domain :as domain]
             [todo.plugins.persistence :as persistence]
-            ;; Reusable plugins
+            [todo.plugins.deadlines :as deadlines]
+            [todo.plugins.calendar :as calendar]
             [todo-browser.plugins.local-storage :as local-storage]
-            ;; Platform-specific plugins
             [todo-browser.plugins.browser-boot :as browser-boot]))
 
 (defn ^:dev/after-load init
@@ -55,24 +57,26 @@
   []
   (println "Initializing Todo Browser App...")
   
-  (let [plugins [;; === Layer 1: Core Domain ===
-                 ;; Pure business logic, no dependencies
-                 domain/plugin
+   (let [plugins [;; === Layer 1: Core Domain ===
+                  ;; Pure business logic, no dependencies
+                  todo.plugins.domain/plugin
 
-                 ;; === Layer 2: Interfaces ===
-                 ;; Define contracts, depend on domain
-                 persistence/plugin    ; Defines load-fn, store-fn, delete-fn
+                  ;; === Layer 2: Interfaces & Utilities ===
+                  ;; Define contracts, depend on domain
+                  todo.plugins.persistence/plugin
+                  todo.plugins.deadlines/plugin
+                  todo.plugins.calendar/plugin
 
-                 ;; === Layer 3: Storage Implementation ===
-                 ;; Override persistence with localStorage
-                 local-storage/plugin  ; Overrides persistence beans with localStorage
+                  ;; === Layer 3: Storage Implementation ===
+                  ;; Override persistence with localStorage
+                  todo-browser.plugins.local-storage/plugin
 
-                 ;; === Layer 4: Platform UI ===
-                 ;; Reagent-based browser UI
-                 browser-boot/plugin]] ; Reagent UI using domain and persistence beans
+                  ;; === Layer 4: Platform UI ===
+                  ;; Reagent-based browser UI
+                  todo-browser.plugins.browser-boot/plugin]]
     
     ;; Bootstrap the system
-    (boot/bootstrap! plugins))
+    (plin.boot/bootstrap! plugins))
   
   (println "Todo Browser App initialized!"))
 

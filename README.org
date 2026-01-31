@@ -57,8 +57,8 @@ Each example provides its own implementation of this interface:
 | Browser | ~todo-browser.plugins.local-storage~ | Browser LocalStorage |
 | JVM TUI | ~todo-jvm-tui.plugins.memory-store~ | In-memory atom |
 | JVM Server | ~todo-jvm-server.plugins.memory-store~ | In-memory atom |
-| Node.js TUI | ~todo-node-tui.plugins.memory-store~ | In-memory atom |
-| Node.js Server | ~todo-node-server.plugins.memory-store~ | In-memory atom |
+| Node.js TUI | ~todo-node-tui.plugins.disk-store~ | EDN file storage |
+| Node.js Server | ~todo-node-server.plugins.disk-store~ | EDN file storage |
 
 This demonstrates Plin's power: the same application logic works across completely different platforms by swapping plugin implementations!
 
@@ -516,7 +516,9 @@ plin/
 │   ├── jvm-server/              # Example 3: JVM HTTP Server
 │   ├── node-tui/                # Example 4: Node.js Terminal UI
 │   ├── node-server/             # Example 5: Node.js HTTP Server
-│   └── common/                  # Shared domain and plugins
+│   ├── common/                  # Shared domain and plugins
+│   └── shared/                  # Shared library code for Node.js examples
+│       └── src/                 # injectable, pluggable, plin, todo
 │       └── src/todo/
 │           ├── domain.cljc      # Task domain logic (shared)
 │           └── plugins/

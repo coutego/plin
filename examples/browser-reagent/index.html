@@ -2,86 +2,1450 @@
 <html>
 <head>
   <meta charset='utf-8'>
-  <title>Todo App - Browser (Scittle)</title>
+  <title>Todo App - Browser (Scittle + Plin)</title>
+  <!-- Scittle: ClojureScript in the browser -->
   <script src='https://cdn.jsdelivr.net/npm/scittle@0.6.17/dist/scittle.js'></script>
   <script src='https://cdn.jsdelivr.net/npm/scittle@0.6.17/dist/scittle.nrepl.js'></script>
+  <!-- React -->
   <script src='https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js'></script>
   <script src='https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js'></script>
+  <!-- Reagent for Scittle -->
   <script src='https://cdn.jsdelivr.net/npm/scittle@0.6.17/dist/scittle.reagent.js'></script>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 700px; margin: 40px auto; padding: 0 20px; background: #f5f5f5; }
+body { font-family: system-ui, sans-serif; max-width: 700px; margin: 40px auto; padding: 0 20px; background: #f5f5f5; }
     h1 { color: #333; text-align: center; }
-    h2 { color: #555; margin-top: 30px; }
-    h3 { color: #666; margin: 15px 0 10px 0; font-size: 16px; }
-    h4 { color: #888; margin: 10px 0 5px 0; font-size: 14px; }
     .app-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    .nav { text-align: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
-    .nav a { color: #4CAF50; text-decoration: none; margin: 0 15px; font-weight: 500; cursor: pointer; }
-    .nav a:hover { text-decoration: underline; }
-    .nav a.active { font-weight: bold; }
-    .add-form { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-    .add-form input[type='text'] { flex: 2; min-width: 200px; padding: 10px; font-size: 16px; border: 1px solid #ddd; border-radius: 4px; }
-    .add-form input[type='date'] { flex: 1; min-width: 140px; padding: 10px; font-size: 14px; border: 1px solid #ddd; border-radius: 4px; }
+    
+    /* Navigation */
+    .nav { display: flex; justify-content: center; gap: 20px; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
+    .nav a { color: #666; text-decoration: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; }
+    .nav a:hover { background: #f0f0f0; }
+    .nav a.active { background: #4CAF50; color: white; }
+    
+    /* Add form */
+    .add-form { display: flex; gap: 10px; margin-bottom: 20px; }
+    .add-form input[type='text'] { flex: 1; padding: 10px; font-size: 16px; border: 1px solid #ddd; border-radius: 4px; }
+    .add-form input[type='date'] { padding: 10px; font-size: 14px; border: 1px solid #ddd; border-radius: 4px; }
     .add-form button { padding: 10px 20px; font-size: 16px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
     .add-form button:hover { background: #45a049; }
-    .filters { text-align: center; margin-bottom: 20px; }
-    .filters a { color: #666; text-decoration: none; margin: 0 8px; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+    
+    /* Filters */
+    .filters { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; }
+    .filters a { color: #666; text-decoration: none; padding: 5px 12px; border-radius: 4px; cursor: pointer; }
     .filters a:hover { background: #f0f0f0; }
     .filters a.active { background: #4CAF50; color: white; }
-    .task { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #eee; gap: 10px; flex-wrap: wrap; }
+    
+    /* Task list */
+    .tasks { }
+    .task { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #eee; gap: 10px; }
     .task:last-child { border-bottom: none; }
-    .task.completed .task-title { text-decoration: line-through; opacity: 0.6; }
-    .task.overdue { background: #fff5f5; }
-    .task.due-today { background: #fffef5; }
     .task input[type='checkbox'] { width: 20px; height: 20px; cursor: pointer; }
-    .task .task-title { flex: 1; font-size: 16px; min-width: 150px; }
-    .task .task-due { font-size: 12px; color: #888; }
-    .task .task-due.overdue { color: #d32f2f; font-weight: bold; }
-    .task .task-due.due-today { color: #f57c00; font-weight: bold; }
-    .task .due-input { padding: 4px; font-size: 12px; border: 1px solid #ddd; border-radius: 4px; }
+    .task .task-title { flex: 1; font-size: 16px; }
+    .task .task-due { font-size: 12px; color: #666; margin-right: 10px; }
+    .task .due-input { font-size: 12px; padding: 4px; border: 1px solid #ddd; border-radius: 4px; }
     .task button { background: #ff4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
     .task button:hover { background: #cc0000; }
+    
+    /* Task status styling */
+    .task.completed .task-title { text-decoration: line-through; opacity: 0.6; }
+    .task.overdue { background: #fff0f0; }
+    .task.overdue .task-due { color: #cc0000; font-weight: bold; }
+    .task.due-today { background: #fff8e0; }
+    .task.due-today .task-due { color: #cc7700; font-weight: bold; }
+    
+    /* Empty state */
     .empty { text-align: center; color: #999; padding: 40px; }
+    
+    /* Actions */
     .actions { text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; }
-    .actions button { background: #666; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin: 0 5px; }
+    .actions button { background: #666; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; }
     .actions button:hover { background: #444; }
+    
+    /* Stats */
     .stats { text-align: center; color: #666; margin-top: 10px; font-size: 14px; }
-    .stats .overdue { color: #d32f2f; font-weight: bold; }
-    /* Calendar styles */
-    .calendar-view { margin-top: 20px; }
-    .calendar-stats { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; margin-bottom: 20px; padding: 15px; background: #f9f9f9; border-radius: 8px; }
-    .calendar-stats .stat { font-size: 14px; }
-    .calendar-stats .stat.overdue strong { color: #d32f2f; }
-    .calendar-stats .stat.due-today strong { color: #f57c00; }
-    .calendar-section { margin-bottom: 25px; }
-    .calendar-section.overdue { border-left: 4px solid #d32f2f; padding-left: 15px; }
-    .calendar-section.due-today { border-left: 4px solid #f57c00; padding-left: 15px; }
-    .calendar-section.upcoming { border-left: 4px solid #4CAF50; padding-left: 15px; }
-    .calendar-section.no-date { border-left: 4px solid #9e9e9e; padding-left: 15px; }
-    .calendar-task { padding: 8px 0; border-bottom: 1px solid #eee; display: flex; gap: 10px; align-items: center; }
-    .calendar-task .task-title { flex: 1; }
-    .calendar-task .task-status { font-size: 11px; padding: 2px 6px; border-radius: 3px; }
-    .calendar-task .task-status.overdue { background: #ffebee; color: #c62828; }
-    .calendar-task .task-status.due-today { background: #fff3e0; color: #ef6c00; }
-    .date-group { margin: 10px 0; }
+    .stats .overdue { color: #cc0000; }
+    
+    /* Calendar view */
+    .calendar-view { }
+    .calendar-stats { display: flex; justify-content: center; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+    .calendar-stats .stat { font-size: 14px; color: #666; }
+    .calendar-stats .stat strong { color: #333; }
+    .calendar-stats .stat.overdue strong { color: #cc0000; }
+    .calendar-stats .stat.due-today strong { color: #cc7700; }
+    
+    .calendar-section { margin-bottom: 20px; }
+    .calendar-section h3 { color: #666; font-size: 14px; text-transform: uppercase; margin-bottom: 10px; }
+    .calendar-section.overdue h3 { color: #cc0000; }
+    .calendar-section.due-today h3 { color: #cc7700; }
+    
+    .calendar-task { padding: 8px 12px; background: #f9f9f9; border-radius: 4px; margin-bottom: 5px; display: flex; justify-content: space-between; }
+    .calendar-task .task-title { }
+    .calendar-task .task-due { color: #666; font-size: 12px; }
+    
+    .date-group { margin-bottom: 15px; }
+    .date-group h4 { color: #333; font-size: 14px; margin-bottom: 5px; }
+    
     .calendar-empty { text-align: center; color: #999; padding: 40px; }
   </style>
 </head>
 <body>
-  <div id='app'></div>
+  <div id='app'>
+    <div class='app-container'>
+      <h1>Loading...</h1>
+      <p style='text-align: center; color: #666;'>Initializing Plin framework...</p>
+    </div>
+  </div>
 
-  <!-- Domain Logic with Deadlines -->
+  <!-- Malli Core (stubs) -->
   <script type='application/x-scittle'>
-(ns todo.domain)
+(ns malli.core
+  "Malli stubs for Scittle compatibility.
+   
+   Scittle doesn't support malli, so we provide no-op stubs.
+   Schema validation is skipped at runtime in the browser.")
+
+(defn explain
+  "No-op explain - always returns nil (valid)."
+  [_schema _value]
+  nil)
+
+  </script>
+
+  <!-- Malli Error (stubs) -->
+  <script type='application/x-scittle'>
+(ns malli.error
+  "Malli error stubs for Scittle compatibility.")
+
+(defn humanize
+  "No-op humanize - returns the errors as-is."
+  [errors]
+  errors)
+
+  </script>
+
+  <!-- Injectable Easy -->
+  <script type='application/x-scittle'>
+(ns injectable.easy
+  "Easy way to express injectable configurations"
+  (:require [clojure.string :as str])
+  )
+
+(def reserved-keywords
+  #{:=        ; Literal: the contents of this vector will be injected as is
+    :=>       ; Function: the function with the same name as the key will be called
+    :=bean>}) ; Inner bean
+
+(defn reserved-keyword? [k]
+  (= \= (second (str k))))
+
+(defn proj
+  "'Projects' the list of args by taking the given indexes in the given order"
+  [indexes args]
+  (reduce (fn [acc i] (conj acc (nth args i))) [] indexes))
+
+(defn index-of
+  "Finds the index of the value 'val' in the collection coll, returning
+   nil if the element is not contained in the collection"
+  [coll val]
+  (let [ind (reduce
+             (fn [acc n] (if (= val n) (reduced acc) (inc acc)))
+             0
+             coll)]
+    (if (= (count coll) ind) nil ind)))
+
+(defn invert-permutation [permv]
+  (vec (map-indexed (fn [i v] (index-of permv i)) permv)))
+
+(defn- permuted-args [permv args]
+  (when (or (not (coll? permv))
+            (not (coll? args))
+            (not= (count permv) (count args)))
+    (throw (ex-info "permuted-args: arguments need to be collections of the same size" {})))
+  (let [args (vec args)]
+    (loop [i   0
+           acc []]
+      (if (< i (count args))
+        (recur (inc i) (conj acc (nth args (nth permv i))))
+        acc))))
+
+(defn permuted-fn [f permv]
+  (let [permv (invert-permutation permv)]
+    (fn [& args]
+      (when (not= (count args)
+                  (count permv))
+        #?(:clj (throw (ArityException.
+                        (count args)
+                        (str
+                         "permuted-fn--anon-fn ("
+                         "args: " args
+                         "permv: " permv
+                         ")")))
+           :cljs (throw (ex-info "permuted-fn: arity exception" {}))))
+      (apply f (permuted-args permv args)))))
+
+(defn- spec-args-perms-reducer [acc narg]
+  (let [{:keys [syms vars kws index]} acc]
+    (->
+     (cond
+       (keyword? narg)
+       (update acc :kws conj index)
+
+       (or (= '? narg)
+           (and (symbol? narg) (= \? (first (str narg)))))
+       (update acc :vars conj index)
+
+       :else
+       (update acc :syms conj index))
+     (update :index inc))))
+
+(defn spec-args-perms [spec-args]
+  (reduce spec-args-perms-reducer
+          {:syms  []
+           :vars  []
+           :kws   []
+           :index 0}
+          spec-args))
+
+(defn process-spec-head [f-or-kw]
+  (cond
+    (fn? f-or-kw)      [f-or-kw]
+    (keyword? f-or-kw) [(fn [kf & args] (apply kf args)) f-or-kw]
+    :default
+    (throw (ex-info
+            (str
+             "Bean definition must start with a function or a reference "
+             "to a bean containing a function") {}))))
+
+(defn subs-bean-refs-in-funtion-pos [[f & args]]
+  (let [head (process-spec-head f)]
+    (into head args)))
+
+(defn process-possible-:=> [spec k]
+  (if (= :=> (first spec))
+    (let [r (rest spec)
+          h (->> k str (drop 1) str/join symbol)]
+      (into [h] r))
+    spec))
+
+(defn process-possible-:= [spec]
+  (if (= := (first spec))
+    [(fn [] (second spec))]
+    spec))
+
+(defn compile-fn-spec [spec & [bean-key]]
+  (let [spec (process-possible-:=> spec bean-key)
+        spec (process-possible-:= spec)
+        [f & args] (subs-bean-refs-in-funtion-pos spec)
+        {:keys
+         [syms
+          kws
+          vars]}   (spec-args-perms args)
+        permv      (vec (concat syms kws vars))
+        g          (if (or (= 0 (count permv))
+                           (= permv (sort permv)))
+                     f
+                     (permuted-fn f permv))
+        gsyms      (if (= 0 (count syms))
+                     g
+                     (apply partial g (proj syms args)))
+        gkws       (if (= 0 (count kws))
+                     (if (= 0 (count vars))
+                       gsyms
+                       (fn [] gsyms))
+                     (fn [& kargs]
+                       (when (not= (count kargs) (count kws))
+                         #?(:clj (throw (ArityException.
+                                         (count kargs)
+                                         (str "compile-fn-spec: in bean '" bean-key "'")))
+                            :cljs (throw (ex-info "compile-fn-spec: wrong arity" {}))))
+                       (if (= 0 (count vars))
+                         (apply gsyms kargs)
+                         (apply partial gsyms kargs))))]
+    (into [gkws] (proj kws args))))
+
+(defn- normalize-bean-spec [spec]
+  (cond
+    (keyword? spec) {:constructor [identity spec]}
+    (vector? spec) {:constructor spec}
+    (map? spec)    spec
+    :else          {:constructor [(fn [] spec)]}))
+
+(defn- compile-bean-spec [k spec]
+  (as-> spec it
+    (update it :constructor (fn [c] (compile-fn-spec c k)))
+    (if (:mutators it)
+      (update it :mutators (fn [muts] (map #(compile-fn-spec % k) muts)))
+      it)))
+
+(defn- normalize-container-spec [spec]
+  (into
+   {}
+   (for [[k v] spec]
+     (do
+       (when (reserved-keyword? k)
+         (throw (ex-info
+                 (str "Keyword '" k "' is not a valid configuration key:  "
+                      "keys starting with ':=' are reserved.")
+                 {})))
+       {k (normalize-bean-spec v)}))))
+
+;;
+;; Inner beans
+;;
+(defn create-inner-bean [k v i]
+  (def rdbg-create-inner-bean [k v i])
+  (let [key   (keyword (str ":=inner-bean-" k "--" i))]
+    {:key key :spec (normalize-bean-spec v)}))
+
+(defn handle-inner-beans-spec-element [k el i]
+  (if (and (vector? el) (= :=bean> (first el)))
+    (let [ib (create-inner-bean k (second el) i)]
+      {:new-element (:key ib)
+       :extra-beans [{(:key ib) (normalize-bean-spec (:spec ib))}]}) ;; FIXME
+    {:new-element el
+     :extra-beans []}))
+
+(defn handle-inner-beans-spec [k fspec]
+  (as-> (map-indexed (fn [i el] (handle-inner-beans-spec-element k el i)) fspec) it
+      (reduce (fn [acc n]
+                (-> acc
+                    (update :spec conj (:new-element n))
+                    (update :extra-beans #(vec (concat % (:extra-beans n))))))
+              {:spec [] :extra-beans []}
+              it)))
+
+(defn create-inner-beans-maybe [k v]
+  (let [const       (:constructor v)
+        res         (handle-inner-beans-spec k const)
+        new-const   (:spec res)
+        new-beans   (:extra-beans res)
+        mutators    (:mutators v)
+        new-spec    {:constructor new-const}
+        new-spec    (if-not (= 0 (count mutators))
+                      (assoc new-spec :mutators mutators)
+                      new-spec)]
+    (concat [[k new-spec]] new-beans)))
+
+(defn- handle-inner-beans-impl [cspec]
+  (->> (for [[k v] cspec] (create-inner-beans-maybe k v))
+       (reduce concat)
+       (into {})))
+
+(defn handle-inner-beans [cspec]
+  (let [nspec (handle-inner-beans-impl cspec)]
+    (if (= nspec cspec)
+      nspec
+      (recur nspec))))
+
+;;
+;; Main entry point
+;;
+(defn compile-container-spec [spec]
+  (as-> spec it
+    (normalize-container-spec it)
+    (handle-inner-beans it)
+    (into {} (for [[k v] it] {k (compile-bean-spec k v)}))))
+
+  </script>
+
+  <!-- Injectable Container -->
+  <script type='application/x-scittle'>
+(ns injectable.container
+  "An IOC container that is able to build a set of beans out of a definition expressed
+   as a map."
+  (:require [malli.core :as m]
+            [malli.error :as me]))
+
+(def bean-def-schema
+  [:map
+   [:constructor vector?]
+   [:mutators {:optional true} [:sequential vector?]]])
+
+(def container-schema
+  [:map-of keyword? bean-def-schema])
+
+(defn- validate-bean-def [bean-def]
+  (when-let [errors (m/explain bean-def-schema bean-def)]
+    (let [human-errors (me/humanize errors)]
+      (throw (ex-info "Invalid bean definition"
+                     {:errors human-errors})))))
+
+(defn- validate-container [container]
+  (when-let [errors (m/explain container-schema container)]
+    (let [human-errors (me/humanize errors)]
+      (throw (ex-info "Invalid container definition"
+                     {:errors human-errors})))))
+
+(defn- bean-constructor [container-def key]
+  (-> container-def key :constructor))
+
+(defn- ensure-bean-built [cont key & [parents]]
+  (when (some #(= key %) parents)
+    (throw (ex-info (str "Circular dependencies: " key " depends on itself through " (rest parents))
+                    {:cause "Circular dependencies" :data parents})))
+  (cond
+    (-> cont key :bean) cont ;; Bean already built
+    (not (key cont))    (throw (ex-info (str "No definition found for bean " key)
+                                        {:cause "Not bean definition" :data key}))
+    :else
+    (let [bean-def (key cont)
+          [fun & bean-deps] (:constructor bean-def)
+          ret (reduce #(ensure-bean-built %1 %2 (conj (or parents []) key))
+                      cont
+                      bean-deps)
+          built-bean-deps (map #(-> ret % :bean)
+                               bean-deps)
+          
+          ;; 1. Build-time error catching
+          raw-instance (try
+                         (apply fun built-bean-deps)
+                         #?(:clj (catch Throwable e
+                                   (println "ERROR constructing bean:" key)
+                                   (println "Bean definition:" bean-def)
+                                   (println "Resolved dependencies:" built-bean-deps)
+                                   (throw (ex-info (str "Error constructing bean " key ": " (.getMessage e))
+                                                   {:key key
+                                                    :bean-def bean-def
+                                                    :deps built-bean-deps}
+                                                   e))))
+                         #?(:cljs (catch :default e
+                                    (println "ERROR constructing bean:" key)
+                                    (println "Bean definition:" bean-def)
+                                    (println "Resolved dependencies:" built-bean-deps)
+                                    (let [msg (or (.-message e) (str e))]
+                                      (throw (ex-info (str "Error constructing bean " key ": " msg)
+                                                      {:key key
+                                                       :bean-def bean-def
+                                                       :deps built-bean-deps}
+                                                      e))))))
+
+          ;; 2. Runtime error catching (if the bean is a function)
+          instance (if (fn? raw-instance)
+                     (fn [& args]
+                       (try
+                         (apply raw-instance args)
+                         #?(:clj (catch Throwable e
+                                   (println "ERROR executing bean:" key)
+                                   (println "Arguments count:" (count args))
+                                   (throw e)))
+                         #?(:cljs (catch :default e
+                                    (println "ERROR executing bean:" key)
+                                    (println "Arguments count:" (count args))
+                                    (throw e)))))
+                     raw-instance)]
+      
+      (assoc-in ret [key :bean] instance))))
+
+(defn- apply-mutator! [cont mut]
+  (let [[fun & deps] mut
+         ret (reduce ensure-bean-built cont deps)
+         built-deps (map #(-> ret % :bean) deps)]
+    (apply fun built-deps)))
+
+(defn- apply-mutators-key! [cont key]
+  (reduce apply-mutator! cont (-> cont key :mutators)))
+
+(defn- apply-mutators! [cont]
+  (doall (for [k (keys cont)] (apply-mutators-key! cont k))) cont)
+
+(defn- build-beans-in-container [cont]
+  (-> (reduce ensure-bean-built cont (keys cont))
+      (apply-mutators!)))
+
+(defn create
+  "Given a container definition (list of beans conforming to :pluggable.ioc-container/container-definition)
+   returns a map of constructed beans of the form {key bean}.
+   It detects circular dependencies and duplicate bean definitions or constructors"
+  [container]
+  (validate-container container)
+  (doseq [[_ bean-def] container]
+    (validate-bean-def bean-def))
+  (as-> (build-beans-in-container container) it
+    (into {} (for [[k v] it] [k (:bean v)]))))
+
+  </script>
+
+  <!-- Injectable Core -->
+  <script type='application/x-scittle'>
+(ns injectable.core
+  "Injectable is a(nother) lightweight IoC container for Clojure(script).
+   It is very similar to Integrant in scope. Similar to Integrant, it removes some
+   limitations from Component linked to the decision to favour inmutable records.
+   Injectable, like Integrant, doesn't impose this limitation, giving a more natural
+   injection mechanism and even allowing for circular dependencies.
+
+   Unlike Integrant, the implementation does not depend on multimethods, but in
+   plain functions. This is a matter of style and it doesn't prevent the mechanism
+   for building the objects to be externalised from the configuration of the system.
+
+   This library takes inspiration in the Spring container. The configurable elements are named
+   'beans' in the codebase due to this fact."
+  (:require
+   [injectable.container :as c]
+   [injectable.easy :as e]))
+
+(defn create-container
+  "Main entry point to injectable. It takes a container definition and returns a container
+   with all its beans built"
+  [container]
+  (-> container
+      (e/compile-container-spec)
+      (c/create)))
+
+
+  </script>
+
+  <!-- Pluggable Root Plugin -->
+  <script type='application/x-scittle'>
+(ns pluggable.root-plugin
+  "The Root Plugin is automatically loaded by Pluggable as the very first plugin.
+   It provides foundational extension points that all other plugins can use.
+
+   ## Core Responsibilities
+
+   1. **Extension Processing**: Implements the `:extensions` mechanism that allows
+      plugins to declare extension points and handlers.
+
+   ## Extension Points Provided
+
+   ### `:extensions`
+   Allows plugins to declare their own extension points. Each extension definition
+   is a map with the following keys:
+
+   | Key       | Required | Description |
+   |-----------|----------|-------------|
+   | `:key`    | Yes      | The keyword that other plugins will use to contribute |
+   | `:handler`| Yes      | A function `(fn [db vals] ...)` that processes contributions |
+   | `:doc`    | Yes      | Documentation string describing the extension |"
+  (:require [malli.core :as m]
+            [malli.error :as me]))
+
+(def extension-schema
+  [:map
+   [:key keyword?]
+   [:handler fn?]
+   [:doc string?]
+   [:spec {:optional true} [:or keyword? fn?]]])
+
+(def extensions-schema
+  "Schema for a collection of extension definitions.
+
+   Plugins declare extensions as a vector of extension maps."
+  [:maybe [:sequential extension-schema]])
+
+;; =============================================================================
+;; Extension Processing
+;; =============================================================================
+
+(defn- get-extension-value
+  "Retrieves the value contributed by a plugin for a given extension key.
+
+   Looks first in `:contributions`, then falls back to root-level keys
+   (with a deprecation warning) unless strict mode is enabled."
+  [plugin key strict?]
+  (let [contrib (get-in plugin [:contributions key])]
+    (if (not (nil? contrib))
+      contrib
+      (when-not strict?
+        (let [root-val (get plugin key)]
+          (when (not (nil? root-val))
+            (println "WARNING: Extension" key "found at root of plugin" (:id plugin) 
+                     "- please move to :contributions")
+            root-val))))))
+
+(defn- process-extension
+  "Processes a single extension by collecting all plugin contributions and
+   invoking the extension's handler.
+
+   Parameters:
+   - `acc`: Accumulator map with `:db` and `:plugins`
+   - `extension`: The extension definition map
+
+   Returns updated accumulator with handler results merged into `:db`."
+  [{:keys [db plugins]}
+   {:keys [key handler spec]}]
+  (let [strict? (:pluggable/strict? db)
+        vals (vec (filter #(not (nil? %)) (map #(get-extension-value % key strict?) plugins)))]
+    (when spec
+      (doall (for [val vals]
+               (when-let [errors (m/explain spec val)]
+                 (throw
+                  (ex-info
+                   (str "Wrong value for extension " key ": " (me/humanize errors))
+                   {:errors errors}))))))
+    {:db      (handler db vals)
+     :plugins plugins}))
+
+(defn- load-plugin
+  "Loads a single plugin by processing all its declared extensions.
+
+   Parameters:
+   - `acc`: Accumulator map with `:db` and `:plugins`
+   - `plugin`: The plugin being loaded (destructured for `:extensions`)
+
+   Returns updated accumulator."
+  [{:keys [plugins] :as acc}
+   {:keys [extensions]}]
+  (when-let [errors (m/explain extensions-schema extensions)]
+    (throw (ex-info "Invalid extensions schema" {:errors (me/humanize errors)})))
+
+  {:db      (:db (reduce process-extension acc extensions))
+   :plugins (rest plugins)})
+
+(defn- standard-loader
+  "Standard plugin loader that processes all extensions in order."
+  [db plugins]
+  (let [process-extensions-result
+        (reduce load-plugin {:db db :plugins plugins} plugins)]
+    (:db process-extensions-result)))
+
+;; =============================================================================
+;; Plugin Definition
+;; =============================================================================
+
+(def plugin
+  "The Root Plugin definition.
+
+   This plugin is automatically prepended to the plugin list by `pluggable.core/load-plugins`.
+   It must not be added manually.
+
+   ## Provides
+
+   - `:loader` - The core plugin loading mechanism
+   - `:extensions` extension point - For plugins to declare their own hooks"
+  {:id     :root-plugin
+   :loader standard-loader
+   :extensions []})
+
+  </script>
+
+  <!-- Pluggable Container -->
+  <script type='application/x-scittle'>
+(ns pluggable.container
+  "The Pluggable plugin container"
+  (:require [malli.core :as m]
+            [malli.error :as me]
+            [clojure.string :as str]))
+
+(def plugin-schema
+  [:map
+   [:id keyword?]
+   [:doc {:optional true} string?]
+   [:deps {:optional true} [:sequential keyword?]]
+   [:loader {:optional true} fn?]])
+
+(def plugins-schema
+  [:sequential plugin-schema])
+
+(defn- crash [msg] (throw (ex-info msg {:cause msg})))
+(defn- crash-if [condition msg] (when condition (crash msg)))
+
+(defn- make-plugin-list [plugin parents loaded]
+  (cond
+    (contains? (set loaded) plugin)
+    loaded
+
+    (contains? (set parents) (:id plugin))
+    (crash (str "Cyclic dependencies: "
+                (:id plugin)
+                " depends on itself through "
+                (str/join parents ", ")))
+
+    :else
+    (let [deps (:deps plugin)
+          trans-deps
+          (reduce (fn [acc dep]
+                    (make-plugin-list dep (conj parents (:id plugin)) acc))
+                  loaded
+                  (or deps []))]
+      (conj trans-deps plugin))))
+
+(defn process-plugin-deps
+  "Ensures that dependencies are loaded in the right order, returning the list
+   of plugins (which can be longer than the original one, because of declared
+   dependencies). It throws an exception if cyclic dependencies are found."
+  [plugins]
+  (let [super-plugin {:id ::meta-plugin, :deps plugins}
+        ret          (butlast (make-plugin-list super-plugin [] []))
+        ids          (map :id ret)
+        dup          (->> ids frequencies (filter #(> (second %) 1)))]
+    (crash-if (> (count dup) 0)
+              (str "Duplicate plugin id: " dup))
+    ret))
+
+(defn load-plugins-impl [plugins db]
+  (if (= (count plugins) 0)
+    db
+    (recur (rest plugins)
+           (if-let [loader (-> plugins first :loader)]
+             (loader db plugins)
+             db))))
+
+(defn load-plugins
+  [plugins & [db]]
+  (crash-if (not (vector? plugins))
+            "pluggable.core/load-plugins: plugins need to be passed as a vector")
+  (crash-if (not (or (nil? db) (map? db)))
+            "pluggable.core/load-plugins: db must be a map")
+  (when-let [errors (m/explain plugins-schema plugins)]
+    (crash-if true
+              (str "pluggable.core/load-plugins: plugins does not comply with schema: "
+                   (me/humanize errors))))
+  (load-plugins-impl (process-plugin-deps plugins) (or db {})))
+
+  </script>
+
+  <!-- Pluggable Core -->
+  <script type='application/x-scittle'>
+(ns pluggable.core
+  "Pluggable is a plugin container which supports the creation of plugin
+   based architectures in Clojure(Script)."
+  (:require [pluggable.container :as c]
+            [pluggable.root-plugin :as root]))
+
+(defn- normalize-spec [spec]
+  (cond
+    (vector? spec) {:constructor spec}
+    (map? spec)    spec
+    :else          {:constructor spec}))
+
+(defn process-bean-entry
+  "Public version of bean entry processing to allow external systems (like plin)
+   to re-normalize beans after merging."
+  [[k v] capture-source?]
+  (let [m (meta v)
+        doc (:doc m)
+        reagent-component (:reagent-component m)
+        spec (normalize-spec v)
+        source (when capture-source? (list 'quote v))]
+    [k (-> (cond-> spec
+             source (assoc :debug/source source)
+             doc (assoc :debug/doc doc)
+             reagent-component (assoc :debug/reagent-component reagent-component))
+           (with-meta m))]))
+
+(defn- process-plugin-map [plugin-map capture-source?]
+  (if (and (map? plugin-map) (:beans plugin-map))
+    (update plugin-map :beans
+            (fn [beans]
+              (into {} (map #(process-bean-entry % capture-source?) beans))))
+    plugin-map))
+
+(defn validate-plugin [p]
+  (when-not (:id p)
+    (throw (ex-info "Plugin must have an :id" {:plugin p})))
+  p)
+
+#?(:cljs
+   (defn plugin
+     "Function that processes a plugin definition.
+      Normalizes the structure but does NOT capture source code (introspection).
+      
+      Returns the plugin map."
+     [plugin-map]
+     (validate-plugin (process-plugin-map plugin-map false)))
+   :default
+   (defmacro plugin
+     "Macro that processes a plugin definition.
+      It captures the source code of bean definitions for introspection purposes,
+      normalizes the structure, but performs NO side effects.
+      
+      Returns the plugin map."
+     [plugin-map]
+     (let [processed (if (map? plugin-map)
+                       (process-plugin-map plugin-map true)
+                       plugin-map)]
+       `(validate-plugin ~processed))))
+
+(defn load-plugins
+  "Load the plugins into the (optional argument, defaulting to '{}')
+  initial state 'db', returning the modified state db. This function automatically
+  adds the pluggable.root-plugin/plugin to the list of plugins to be loaded in
+  the first place. All plugins can, therefore, assume that the root-plugin has been
+  loaded."
+  [plugins & [db]]
+  (when-not (vector? plugins)
+    (throw (ex-info "pluggable.core/load-plugins: plugins need to be passed as a vector"
+                    {:cause "pluggable.core/load-plugins: plugins need to be passed as a vector"})))
+  (c/load-plugins
+   (-> [root/plugin]
+       (concat plugins)
+       vec)
+   db))
+
+  </script>
+
+  <!-- Plin Core -->
+  <script type='application/x-scittle'>
+(ns plin.core
+  "The core namespace for the Plin library, which integrates the `pluggable` and `injectable` libraries
+   to provide a robust, data-driven plugin system with dependency injection.
+
+   ## Core Concepts
+
+   *   **Plugin**: A map defining a unit of functionality. It can define **Beans** (internal logic)
+       and **Extensions** (hooks for other plugins), and make **Contributions** to other plugins.
+   *   **Bean**: A component managed by the dependency injection container. Beans can be values,
+       functions, or Reagent components.
+   *   **Extension**: A named hook defined by a plugin that allows other plugins to contribute data or logic.
+   *   **Contribution**: Data provided by a plugin to satisfy an extension defined by another plugin.
+
+   ## Usage
+
+   Users primarily interact with this namespace via the `plugin` macro to define plugins,
+   and the `collect-*` helper functions to define extension handlers."
+  (:require [injectable.core :as inj]
+            [pluggable.core :as plug]
+            [pluggable.root-plugin :as root-plug])
+  #?(:cljs (:require-macros [plin.core])))
+
+;; --- Helpers ---
+
+(defn- debug [& args] (println args))
+
+(defn- process-bean-with-api [[k v]]
+  (let [m (meta v)
+        api (:api m)]
+    (if api
+      (let [spec (if (map? v) v {:constructor v})
+            spec (with-meta spec m)]
+        [k (assoc spec :api api)])
+      [k v])))
+
+(defn- process-plugin-for-api [plugin-map]
+  ;; We no longer process the API here because metadata inheritance 
+  ;; needs to happen during the merge phase in the handler.
+  plugin-map)
+
+;; --- Dependency Validation ---
+
+(defn- get-defined-keys [plugin-map]
+  (let [bean-keys (set (keys (:beans plugin-map)))
+        ext-keys (set (map :key (:extensions plugin-map)))]
+    (into bean-keys ext-keys)))
+
+(defn validate-dependencies 
+  "Validates that a plugin explicitly declares dependencies for any fully-qualified keys it uses.
+   
+   This function checks keys used in `:beans` and `:contributions`. If a key belongs to another
+   namespace (plugin), that plugin must be present in the `:deps` vector.
+   
+   *   `plugin-map`: The plugin definition map.
+   
+   Returns the `plugin-map` unchanged if validation passes, or throws an `ex-info` if validation fails."
+  [plugin-map]
+  ;; We can only validate if we have the resolved maps (runtime/CLJS)
+  ;; If deps contains symbols (macro/CLJ), we skip validation.
+  (let [deps (:deps plugin-map)]
+    (when (and (vector? deps) (every? map? deps))
+      (let [;; Implicit dependencies that are always available
+            implicit-deps [root-plug/plugin] 
+            ;; Note: injectable-plugin is defined in this file. 
+            ;; We assume its keys (:beans) are available.
+            
+            all-deps (concat deps implicit-deps)
+            
+            ;; Collect all keys defined by dependencies + self
+            allowed-keys (reduce (fn [acc dep] (into acc (get-defined-keys dep)))
+                                 (get-defined-keys plugin-map) ;; Add self
+                                 all-deps)
+            
+            ;; We also need to allow the :beans extension key itself
+            allowed-keys (conj allowed-keys :beans)
+
+            ;; Keys to check: Beans and Contributions
+            keys-to-check (concat (keys (:beans plugin-map))
+                                  (keys (:contributions plugin-map)))]
+
+        (doseq [k keys-to-check]
+          (when (and (keyword? k) (namespace k)) ;; Only check qualified keys
+            (when-not (contains? allowed-keys k)
+              (throw (ex-info (str "Plugin '" (:id plugin-map) "' uses key '" k
+                                   "' but does not depend on a plugin defining it.\n"
+                                   "Please add the plugin that defines '" k "' to the :deps vector.")
+                              {:plugin-id (:id plugin-map)
+                               :missing-key k}))))))))
+  plugin-map)
+
+;; --- Re-export Macros ---
+
+#?(:cljs
+   (defn plugin 
+     "Defines a plugin map.
+      
+      This function (in CLJS) or macro (in CLJ/CLJC) wraps `pluggable.core/plugin` to provide:
+      1.  **Automatic ID Generation**: If `:id` is missing, it is generated from the current namespace
+          (e.g., `my.ns` -> `:my.ns/plugin`).
+      2.  **Dependency Validation**: Ensures that the plugin explicitly lists dependencies for any
+          foreign keys it references in `:beans` or `:contributions`.
+      
+      **Arguments:**
+      *   `plugin-map`: A map describing the plugin. Supported keys:
+          *   `:id` (optional): Keyword ID for the plugin.
+          *   `:doc` (optional): Documentation string.
+          *   `:deps` (optional): Vector of other plugin maps this plugin depends on.
+          *   `:beans` (optional): Map of bean definitions `{::bean-key definition}`.
+          *   `:contributions` (optional): Map of contributions to other plugins `{::other/extension value}`.
+          *   `:extensions` (optional): Vector of extension definitions `[{:key ::my-ext :handler fn ...}]`.
+      
+      **Returns:**
+      *   The processed plugin map."
+     [plugin-map]
+     (let [ns-str (str *ns*)
+           default-id (keyword ns-str "plugin")
+           p-with-id (if (:id plugin-map) plugin-map (assoc plugin-map :id default-id))]
+       (plug/plugin (process-plugin-for-api (validate-dependencies p-with-id)))))
+   :default
+   (defmacro plugin
+     "Defines a plugin map.
+      
+      This function (in CLJS) or macro (in CLJ/CLJC) wraps `pluggable.core/plugin` to provide:
+      1.  **Automatic ID Generation**: If `:id` is missing, it is generated from the current namespace
+          (e.g., `my.ns` -> `:my.ns/plugin`).
+      2.  **Dependency Validation**: Ensures that the plugin explicitly lists dependencies for any
+          foreign keys it references in `:beans` or `:contributions`.
+      
+      **Arguments:**
+      *   `plugin-map`: A map describing the plugin. Supported keys:
+          *   `:id` (optional): Keyword ID for the plugin.
+          *   `:doc` (optional): Documentation string.
+          *   `:deps` (optional): Vector of other plugin maps this plugin depends on.
+          *   `:beans` (optional): Map of bean definitions `{::bean-key definition}`.
+          *   `:contributions` (optional): Map of contributions to other plugins `{::other/extension value}`.
+          *   `:extensions` (optional): Vector of extension definitions `[{:key ::my-ext :handler fn ...}]`.
+      
+      **Returns:**
+      *   The processed plugin map."
+     [plugin-map]
+     (let [ns-str (str *ns*)
+           default-id (keyword ns-str "plugin")]
+       `(let [p# ~plugin-map
+              p-with-id# (if (:id p#) p# (assoc p# :id ~default-id))]
+          (plug/plugin (validate-dependencies p-with-id#))))))
+
+(defn- merge-beans [existing-beans new-beans]
+  (reduce (fn [acc [k v]]
+            (let [old-v (get acc k)
+                  ;; Merge metadata so implementation inherits from interface
+                  merged-meta (merge (meta old-v) (meta v))
+                  ;; Merge the map itself to preserve keys like :debug/doc
+                  ;; v overrides old-v keys.
+                  merged-v (if (and (map? old-v) (map? v))
+                             (merge old-v v)
+                             v)]
+              (assoc acc k (with-meta merged-v merged-meta))))
+          existing-beans
+          new-beans))
+
+(defn- beans-handler-impl [key db vals]
+  (let [existing-beans (get db key {})
+        ;; 1. Merge all bean definitions and their metadata
+        merged (reduce merge-beans existing-beans vals)
+        ;; 2. Re-process every bean to ensure metadata promotion (e.g. :reagent-component)
+        ;;    is recalculated based on the merged metadata.
+        re-processed (into {} (map #(plug/process-bean-entry % false) merged))
+        ;; 3. Process the merged results to extract API metadata into the bean spec
+        processed-merged (into {} (map process-bean-with-api re-processed))]
+    (assoc db key processed-merged)))
+
+(defn- beans-handler [db vals]
+  (beans-handler-impl :beans db vals))
+
+(def injectable-plugin
+  "Internal plugin that defines the `:beans` extension point.
+   This allows other plugins to define beans that will be loaded into the Injectable container."
+  (plug/plugin
+   {:id :injectable-plugin
+    :extensions
+    [{:key :beans
+      :doc "Map containing a valid configuration map for Injectable.
+           The configuration map may refer to keys that are not defined.
+           This is fine, as long as some other plugin defines them."
+      :handler beans-handler
+      :spec map?}]}))
+
+;; =============================================================================
+;; Bean Redefinition Logic (moved from plin.bean-redefs)
+;; =============================================================================
+
+(defn- replace-placeholder
+  "Recursively replaces a placeholder keyword in a bean specification."
+  [spec placeholder replacement]
+  (cond
+    (vector? spec)
+    (mapv (fn [arg] (if (= arg placeholder) replacement arg)) spec)
+
+    (and (map? spec) (:constructor spec))
+    (update spec :constructor replace-placeholder placeholder replacement)
+
+    :else
+    spec))
+
+(defn- process-single-bean-redef
+  "Process a single bean redefinition."
+  [current-beans target-key redef-config]
+  (let [config (if (and (map? redef-config)
+                        (or (:spec redef-config) (:placeholder redef-config)))
+                 redef-config
+                 {:spec redef-config})
+        spec (:spec config)
+        placeholder (or (:placeholder config) :orig)
+        original-def (get current-beans target-key)]
+
+    (if-not original-def
+      (do
+        (println "WARNING: Cannot redefine bean" target-key
+                 "- original not found. Skipping redefinition.")
+        current-beans)
+
+      (let [orig-key (keyword (namespace target-key)
+                              (str (name target-key) "-ORIG-" (rand-int 100000)))
+            new-spec (replace-placeholder spec placeholder orig-key)]
+
+        (-> current-beans
+            (assoc orig-key original-def)
+            (assoc target-key new-spec))))))
+
+(defn- get-bean-redefs-from-plugin
+  "Extract bean-redefs from a plugin, checking both root level and contributions."
+  [plugin]
+  (or (get-in plugin [:contributions :bean-redefs])
+      (get plugin :bean-redefs)))
+
+(defn- apply-bean-redefs
+  "Apply all bean redefinitions from plugins to the beans map."
+  [beans plugins]
+  (let [all-redefs (keep get-bean-redefs-from-plugin plugins)]
+    (reduce (fn [current-beans redefs-map]
+              (if (and redefs-map (map? redefs-map))
+                (reduce-kv process-single-bean-redef current-beans redefs-map)
+                current-beans))
+            beans
+            all-redefs)))
+
+;; =============================================================================
+
+(defn load-plugins
+  "Loads a list of plugins and creates a new Injectable container.
+   
+   This is the core function for bootstrapping the application. It performs three main steps:
+   1.  **Pluggable Phase**: It uses `pluggable.core/load-plugins` to process the plugin list,
+       resolve dependencies, and execute extension handlers (including the `:beans` handler).
+   2.  **Bean Redefinition Phase**: Processes any bean redefinitions to wrap existing beans.
+   3.  **Injectable Phase**: It takes the final bean definitions and uses
+       `injectable.core/create-container` to build the dependency injection container.
+   
+   It also injects a special bean `::definitions` containing the raw bean definitions,
+   which is useful for debugging tools.
+   
+   **Arguments:**
+   *   `plugins`: A sequence of plugin maps.
+   
+   **Returns:**
+   *   The constructed Injectable container (a map of instantiated beans)."
+  [plugins]
+  (let [;; Add injectable-plugin first
+        plugins-with-injectable (vec (concat [injectable-plugin] plugins))
+        ;; Run pluggable to process extensions and collect beans
+        db (plug/load-plugins plugins-with-injectable)
+        ;; Apply bean redefinitions after all beans are collected
+        beans-with-redefs (apply-bean-redefs (:beans db) plugins)
+        ;; Inject the definitions map into the container so tools can inspect it
+        beans-with-defs (assoc beans-with-redefs ::definitions [:= beans-with-redefs])
+        container (inj/create-container beans-with-defs)]
+    container))
+
+(defonce cached-container (atom {}))
+
+(defn push-plugins!
+  "Loads the provided plugins, creates a container, and caches it in `cached-container`.
+   Useful for hot-reloading or testing scenarios.
+   
+   **Arguments:**
+   *   `plugins`: A sequence of plugin maps.
+   
+   **Returns:**
+   *   The new Injectable container."
+  [plugins]
+  (let [new-container (load-plugins plugins)]
+    (reset! cached-container new-container)
+    new-container) )
+
+(defn collect-last
+  "Extension Handler Helper.
+   
+   Returns a handler function that keeps only the **last** value contributed to an extension.
+   Useful for 'singleton' extensions where the last plugin to load wins (e.g., a default configuration).
+   
+   **Arguments:**
+   *   `bean-key`: The key in the DB where the result should be stored.
+   
+   **Returns:**
+   *   A handler function `(fn [db vals] ...)`."
+  [bean-key]
+  (fn [db vals]
+    (if (empty? vals)
+      db
+      (assoc-in db
+                [:beans bean-key]
+                (last vals)))))
+
+(defn collect-vec [& args] (vec args))
+
+(defn collect-all
+  "Extension Handler Helper.
+   
+   Returns a handler function that collects **all** values contributed to an extension.
+   It assumes the contributions are collections (e.g., vectors) and flattens them into a single vector.
+   The result is stored as a bean definition that resolves to that vector.
+   
+   Useful for 'registry' style extensions (e.g., a list of menu items).
+   
+   **Arguments:**
+   *   `bean-key`: The key in the DB where the result should be stored.
+   
+   **Returns:**
+   *   A handler function `(fn [db vals] ...)`."
+  [bean-key]
+  (fn [db values]
+    (let [flat-values (apply concat values)]
+      (assoc-in db
+                [:beans bean-key :constructor]
+                (into [collect-vec] flat-values)))))
+
+(defn collect-data
+  "Extension Handler Helper.
+   
+   Similar to `collect-all`, but stores the result as a **literal value** (`[:= ...]`) 
+   instead of a constructor. This is slightly more efficient if the data is static 
+   and doesn't need to be built by the container.
+   
+   **Arguments:**
+   *   `bean-key`: The key in the DB where the result should be stored.
+   
+   **Returns:**
+   *   A handler function `(fn [db vals] ...)`."
+  [bean-key]
+  (fn [db values]
+    (let [flat-values (vec (apply concat values))]
+      (assoc-in db
+                [:beans bean-key]
+                [:= flat-values]))))
+
+  </script>
+
+  <!-- Plin Boot -->
+  <script type='application/x-scittle'>
+(ns plin.boot
+  "A minimal, platform-agnostic bootstrapper for Plin applications.
+
+   This module is responsible for:
+   1. Receiving a list of plugins
+   2. Creating the DI container
+   3. Extracting and calling the ::boot-fn bean
+
+   It knows NOTHING about Reagent, DOM, HTTP servers, etc.
+   All platform-specific behavior is delegated to plugins."
+  (:require
+   [plin.core :as pi]
+   #?(:clj [clojure.core.async :as async :refer [go <! >! chan close!]])
+   [clojure.string :as str]))
+
+;; --- Helpers ---
+
+(defn- log [& args]
+  (apply println args))
+
+(defn- log-error [& args]
+  (apply println "ERROR:" args))
+
+(defn- manifest-id->plugin-id
+  "Converts a manifest ID (e.g., :plinpt.p-devdoc) to a plugin ID (e.g., :plinpt.p-devdoc/plugin).
+   If the ID already ends with /plugin, returns it unchanged."
+  [manifest-id]
+  (when (keyword? manifest-id)
+    (let [ns-part (namespace manifest-id)
+          name-part (name manifest-id)]
+      (if (and ns-part (= "plugin" name-part))
+        ;; Already in plugin ID format (e.g., :plinpt.p-devdoc/plugin)
+        manifest-id
+        ;; Convert manifest ID to plugin ID format
+        ;; :plinpt.p-devdoc -> :plinpt.p-devdoc/plugin
+        (keyword name-part "plugin")))))
+
+(defn- normalize-disabled-ids
+  "Normalizes a set of disabled IDs from manifest format to plugin ID format."
+  [disabled-ids]
+  (set (keep manifest-id->plugin-id disabled-ids)))
+
+;; --- State ---
+;; Atom holding the system state. Accessible to plugins via ::api bean.
+
+(defonce state
+  (atom {:all-plugins []
+         :disabled-ids #{}
+         :container nil
+         :last-error nil}))
+
+;; --- Logic ---
+
+(defn get-cascading-disabled
+  "Calculates the set of effectively disabled plugins based on dependencies."
+  [plugins disabled-ids]
+  (loop [current-disabled disabled-ids]
+    (let [newly-disabled
+          (reduce
+           (fn [acc plugin]
+             (if (and (not (contains? current-disabled (:id plugin)))
+                      (some #(contains? current-disabled %) (:deps plugin)))
+               (conj acc (:id plugin))
+               acc))
+           #{}
+           plugins)]
+      (if (empty? newly-disabled)
+        current-disabled
+        (recur (into current-disabled newly-disabled))))))
+
+(defn- update-plugin-list [plugins new-plugin]
+  (let [target-id (:id new-plugin)
+        idx (reduce-kv (fn [_ i p]
+                         (if (= (:id p) target-id) (reduced i) nil))
+                       nil
+                       plugins)]
+    (if idx
+      (assoc plugins idx new-plugin)
+      (conj plugins new-plugin))))
+
+#?(:clj
+   (do
+     (defn register-plugin!
+       "Registers a new plugin definition (or updates an existing one) and reloads the system.
+   Returns a channel that will receive the result."
+       [plugin-def]
+       (swap! state update :all-plugins update-plugin-list plugin-def)
+       (reload!))
+
+     (defn enable-plugin!
+       "Enables a plugin by removing it from disabled-ids and reloading.
+   Returns a channel that will receive the result."
+       [plugin-id]
+       (swap! state update :disabled-ids disj plugin-id)
+       (reload!))
+
+     (defn disable-plugin!
+       "Disables a plugin by adding it to disabled-ids and reloading.
+   Returns a channel that will receive the result."
+       [plugin-id]
+       (swap! state update :disabled-ids conj plugin-id)
+       (reload!))
+
+     (defn toggle-plugin!
+       "Toggles a plugin's enabled state and reloads.
+   Returns a channel that will receive the result."
+       [plugin-id]
+       (let [currently-disabled? (contains? (:disabled-ids @state) plugin-id)]
+         (if currently-disabled?
+           (enable-plugin! plugin-id)
+           (disable-plugin! plugin-id))))))
+
+;; --- Plugin Definition ---
+
+(def plugin
+  "The Bootstrapper Plugin.
+
+   Defines the `::boot-fn` bean which should be overridden by platform-specific
+   plugins to provide post-bootstrap behavior (e.g., mount UI, start server)."
+  (pi/plugin
+   {:doc "System Bootstrapper. Manages the plugin lifecycle and system state."
+    :deps []
+
+    :beans
+    {::api
+     ^{:doc "System Control API.
+             Returns a map with state atom and control functions."
+       :api {:ret :map}}
+     [:= {:state state}]
+
+     ::boot-fn
+     ^{:doc "Function called after the container is created.
+             Receives the container as argument.
+             Override this in platform-specific plugins to mount UI, start servers, etc.
+             Default: no-op that just logs."
+       :api {:args [["container" {} :map]] :ret :any}}
+     [:= (fn [_container]
+           (log "Boot complete. No ::boot-fn override provided."))]}}))
+
+;; --- Reload Implementation ---
+
+#?(:clj
+   (defn reload!
+     "Reloads the system based on the current state.
+
+   1. Calculates the active plugins (filtering out disabled ones).
+   2. Calls `plin.core/load-plugins` to create a new container.
+   3. Extracts `::boot-fn` from the container and calls it.
+   4. Updates the `state` atom with the new container.
+
+   Returns a channel that will receive the state when reload completes."
+     []
+     (let [result-chan (chan)]
+       (go
+         (log "System: Reloading...")
+         (try
+           (let [{:keys [all-plugins disabled-ids]} @state
+                 ;; Calculate which plugins to actually load
+                 final-disabled (get-cascading-disabled all-plugins disabled-ids)
+                 plugins-to-load (filter #(not (contains? final-disabled (:id %))) all-plugins)
+
+                 ;; Create Container
+                 container (pi/load-plugins (vec plugins-to-load))
+
+                 ;; Get the boot function from the container
+                 boot-fn (::boot-fn container)]
+
+             ;; Update State
+             (swap! state assoc :container container :last-error nil)
+
+             ;; Call the boot function with the container
+             (when boot-fn
+               (boot-fn container))
+
+             (log "System: Reload complete. Active plugins:" (count plugins-to-load))
+             (>! result-chan @state))
+           (catch Exception e
+             (log-error e)
+             (swap! state assoc :last-error e)
+             (>! result-chan e)))
+         (close! result-chan))
+       result-chan))
+
+   :cljs
+   (defn reload!
+     "Reloads the system based on the current state.
+
+   1. Calculates the active plugins (filtering out disabled ones).
+   2. Calls `plin.core/load-plugins` to create a new container.
+   3. Extracts `::boot-fn` from the container and calls it.
+   4. Updates the `state` atom with the new container.
+
+   Returns the state directly (no async in cljs)."
+     []
+     (log "System: Reloading...")
+     (try
+       (let [{:keys [all-plugins disabled-ids]} @state
+             ;; Calculate which plugins to actually load
+             final-disabled (get-cascading-disabled all-plugins disabled-ids)
+             plugins-to-load (filter #(not (contains? final-disabled (:id %))) all-plugins)
+
+             ;; Create Container
+             container (pi/load-plugins (vec plugins-to-load))
+
+             ;; Get the boot function from the container
+             boot-fn (::boot-fn container)]
+
+         ;; Update State
+         (swap! state assoc :container container :last-error nil)
+
+         ;; Call the boot function with the container
+         (when boot-fn
+           (boot-fn container))
+
+         (log "System: Reload complete. Active plugins:" (count plugins-to-load))
+         @state)
+       (catch js/Error e
+         (log-error e)
+         (swap! state assoc :last-error e)
+         e))))
+
+;; --- Bootstrap ---
+
+#?(:clj
+   (defn bootstrap!
+     "Bootstraps the system with the given plugins.
+
+   Arguments:
+   - plugins: Vector of plugin definitions
+   - initially-disabled-ids: (Optional) Set of plugin IDs to start disabled
+                             These can be in manifest format (e.g., :plinpt.p-devdoc)
+                             and will be normalized to plugin ID format (e.g., :plinpt.p-devdoc/plugin)
+
+   Adds the boot plugin itself to the list, then calls reload!.
+   Returns a channel that will receive the state when bootstrap completes."
+     ([plugins]
+      (bootstrap! plugins #{}))
+     ([plugins initially-disabled-ids]
+      (let [full-list (vec (cons plugin plugins))
+            disabled-set (if (set? initially-disabled-ids)
+                           initially-disabled-ids
+                           (set initially-disabled-ids))
+            ;; Normalize the disabled IDs to match plugin ID format
+            normalized-disabled (normalize-disabled-ids disabled-set)]
+        (swap! state assoc
+               :all-plugins full-list
+               :disabled-ids normalized-disabled)
+        (reload!))))
+
+   :cljs
+   (defn bootstrap!
+     "Bootstraps the system with the given plugins.
+
+   Arguments:
+   - plugins: Vector of plugin definitions
+   - initially-disabled-ids: (Optional) Set of plugin IDs to start disabled
+
+   Adds the boot plugin itself to the list, then calls reload!.
+   Returns the state directly (no async in cljs)."
+     ([plugins]
+      (bootstrap! plugins #{}))
+     ([plugins initially-disabled-ids]
+      (let [full-list (vec (cons plugin plugins))
+            disabled-set (if (set? initially-disabled-ids)
+                           initially-disabled-ids
+                           (set initially-disabled-ids))
+            ;; Normalize the disabled IDs to match plugin ID format
+            normalized-disabled (normalize-disabled-ids disabled-set)]
+        (swap! state assoc
+               :all-plugins full-list
+               :disabled-ids normalized-disabled)
+        (reload!)))))
+
+  </script>
+
+  <!-- Todo Domain -->
+  <script type='application/x-scittle'>
+(ns todo.domain
+  "Core domain entities and operations for the Todo application.
+   
+   This namespace defines the business logic that is shared across all platform examples.
+   It contains no platform-specific code.
+   
+   Domain Concepts:
+   - Task: A unit of work with title, completion status, due date, and timestamps
+   - TaskList: A collection of tasks with operations to manipulate them")
+
+;; Domain entities
 
 (defrecord Task [id title completed created-at due-date])
 
 (defrecord TaskList [tasks next-id])
 
-(defn create-task-list []
+;; Domain operations
+
+(defn create-task-list
+  "Creates a new empty task list."
+  []
   (->TaskList {} 1))
 
-(defn add-task 
+(defn add-task
+  "Adds a new task to the task list.
+   
+   Arguments:
+   - task-list: The current TaskList
+   - title: String title for the new task
+   - due-date: (Optional) Due date for the task. On JVM: java.time.LocalDate or nil.
+               On JS: Date object or nil.
+   
+   Returns updated TaskList with new task added."
   ([task-list title]
    (add-task task-list title nil))
   ([task-list title due-date]
@@ -89,180 +1453,584 @@
          task (map->Task {:id id
                           :title title
                           :completed false
-                          :created-at (js/Date.)
+                          :created-at #?(:clj (java.time.Instant/now)
+                                         :cljs (js/Date.))
                           :due-date due-date})]
      (-> task-list
          (assoc-in [:tasks id] task)
          (update :next-id inc)))))
 
-(defn toggle-task [task-list task-id]
+(defn complete-task
+  "Marks a task as completed.
+   
+   Arguments:
+   - task-list: The current TaskList
+   - task-id: ID of the task to complete
+   
+   Returns updated TaskList."
+  [task-list task-id]
+  (assoc-in task-list [:tasks task-id :completed] true))
+
+(defn uncomplete-task
+  "Marks a task as not completed.
+   
+   Arguments:
+   - task-list: The current TaskList
+   - task-id: ID of the task to uncomplete
+   
+   Returns updated TaskList."
+  [task-list task-id]
+  (assoc-in task-list [:tasks task-id :completed] false))
+
+(defn toggle-task
+  "Toggles the completion status of a task.
+   
+   Arguments:
+   - task-list: The current TaskList
+   - task-id: ID of the task to toggle
+   
+   Returns updated TaskList."
+  [task-list task-id]
   (update-in task-list [:tasks task-id :completed] not))
 
-(defn delete-task [task-list task-id]
+(defn delete-task
+  "Removes a task from the task list.
+   
+   Arguments:
+   - task-list: The current TaskList
+   - task-id: ID of the task to delete
+   
+   Returns updated TaskList."
+  [task-list task-id]
   (update task-list :tasks dissoc task-id))
 
-(defn set-due-date [task-list task-id due-date]
-  (assoc-in task-list [:tasks task-id :due-date] due-date))
+(defn get-task
+  "Retrieves a single task by ID.
+   
+   Arguments:
+   - task-list: The current TaskList
+   - task-id: ID of the task to retrieve
+   
+   Returns the Task or nil if not found."
+  [task-list task-id]
+  (get-in task-list [:tasks task-id]))
 
-(defn get-all-tasks [task-list]
+(defn get-all-tasks
+  "Returns all tasks as a vector, sorted by creation time.
+   
+   Arguments:
+   - task-list: The current TaskList
+   
+   Returns vector of Tasks."
+  [task-list]
   (->> (:tasks task-list)
        vals
        (sort-by :created-at)))
 
-(defn get-active-tasks [task-list]
+(defn get-active-tasks
+  "Returns all incomplete tasks.
+   
+   Arguments:
+   - task-list: The current TaskList
+   
+   Returns vector of incomplete Tasks."
+  [task-list]
   (->> (get-all-tasks task-list)
        (remove :completed)))
 
-(defn get-completed-tasks [task-list]
+(defn get-completed-tasks
+  "Returns all completed tasks.
+   
+   Arguments:
+   - task-list: The current TaskList
+   
+   Returns vector of completed Tasks."
+  [task-list]
   (->> (get-all-tasks task-list)
        (filter :completed)))
 
-(defn clear-completed [task-list]
+(defn clear-completed
+  "Removes all completed tasks from the list.
+   
+   Arguments:
+   - task-list: The current TaskList
+   
+   Returns updated TaskList."
+  [task-list]
   (update task-list :tasks #(into {} (remove (fn [[_ task]] (:completed task))) %)))
 
-;; Date utilities
-(defn today []
-  (let [d (js/Date.)]
-    (js/Date. (.getFullYear d) (.getMonth d) (.getDate d))))
+(defn set-due-date
+  "Sets or updates the due date for a task.
+   
+   Arguments:
+   - task-list: The current TaskList
+   - task-id: ID of the task to update
+   - due-date: The due date (LocalDate on JVM, Date on JS, or nil to clear)
+   
+   Returns updated TaskList."
+  [task-list task-id due-date]
+  (assoc-in task-list [:tasks task-id :due-date] due-date))
 
-(defn parse-date [date-str]
+;; --- Date Utilities ---
+;; Cross-platform date handling for deadline calculations
+
+(defn today
+  "Returns today's date.
+   On JVM: java.time.LocalDate
+   On JS: Date object (with time set to midnight)"
+  []
+  #?(:clj (java.time.LocalDate/now)
+     :cljs (let [d (js/Date.)]
+             (js/Date. (.getFullYear d) (.getMonth d) (.getDate d)))))
+
+(defn parse-date
+  "Parses a date string in YYYY-MM-DD format.
+   Returns nil if the string is empty or invalid."
+  [date-str]
   (when (and date-str (not= date-str ""))
-    (let [d (js/Date. date-str)]
-      (when-not (js/isNaN (.getTime d))
-        d))))
+    #?(:clj (try
+              (java.time.LocalDate/parse date-str)
+              (catch Exception _ nil))
+       :cljs (let [d (js/Date. date-str)]
+               (when-not (js/isNaN (.getTime d))
+                 d)))))
 
-(defn format-date [date]
+(defn format-date
+  "Formats a date as YYYY-MM-DD string.
+   Returns empty string if date is nil."
+  [date]
   (if date
-    (let [y (.getFullYear date)
-          m (inc (.getMonth date))
-          d (.getDate date)]
-      (str y "-" (when (< m 10) "0") m "-" (when (< d 10) "0") d))
+    #?(:clj (.toString date)
+       :cljs (let [y (.getFullYear date)
+                   m (inc (.getMonth date))
+                   d (.getDate date)]
+               (str y "-" (when (< m 10) "0") m "-" (when (< d 10) "0") d)))
     ""))
 
-(defn days-until [date]
+(defn days-until
+  "Calculates the number of days from today until the given date.
+   Returns nil if date is nil.
+   Negative values indicate past dates (overdue)."
+  [date]
   (when date
-    (let [today-ms (.getTime (today))
-          date-ms (.getTime date)
-          diff-ms (- date-ms today-ms)]
-      (js/Math.floor (/ diff-ms 86400000)))))
+    #?(:clj (let [today (java.time.LocalDate/now)]
+              (.until today date java.time.temporal.ChronoUnit/DAYS))
+       :cljs (let [today-ms (.getTime (today))
+                   date-ms (.getTime date)
+                   diff-ms (- date-ms today-ms)]
+               (js/Math.floor (/ diff-ms 86400000))))))
 
-(defn overdue? [task]
+(defn overdue?
+  "Returns true if the task is overdue (has a due date in the past and is not completed)."
+  [task]
   (and (:due-date task)
        (not (:completed task))
        (let [days (days-until (:due-date task))]
          (and days (neg? days)))))
 
-(defn due-today? [task]
+(defn due-today?
+  "Returns true if the task is due today."
+  [task]
   (and (:due-date task)
        (let [days (days-until (:due-date task))]
          (and days (zero? days)))))
 
-(defn get-overdue-tasks [task-list]
+(defn get-overdue-tasks
+  "Returns all overdue tasks (past due date and not completed).
+   
+   Arguments:
+   - task-list: The current TaskList
+   
+   Returns vector of overdue Tasks."
+  [task-list]
   (->> (get-active-tasks task-list)
        (filter overdue?)))
 
-(defn sort-by-urgency [tasks]
+(defn get-tasks-due-today
+  "Returns all tasks due today.
+   
+   Arguments:
+   - task-list: The current TaskList
+   
+   Returns vector of Tasks due today."
+  [task-list]
+  (->> (get-all-tasks task-list)
+       (filter due-today?)))
+
+(defn get-tasks-with-due-date
+  "Returns all tasks that have a due date set, sorted by due date.
+   
+   Arguments:
+   - task-list: The current TaskList
+   
+   Returns vector of Tasks with due dates."
+  [task-list]
+  (->> (get-all-tasks task-list)
+       (filter :due-date)
+       (sort-by :due-date)))
+
+(defn sort-by-urgency
+  "Sorts tasks by urgency (overdue first, then by due date, then no-due-date last).
+   
+   Arguments:
+   - tasks: A sequence of tasks
+   
+   Returns sorted vector of Tasks."
+  [tasks]
   (let [with-due (filter :due-date tasks)
         without-due (remove :due-date tasks)]
     (concat (sort-by #(days-until (:due-date %)) with-due)
             without-due)))
 
-(defn due-date-status [task]
-  (cond
-    (:completed task) :completed
-    (overdue? task) :overdue
-    (due-today? task) :due-today
-    (:due-date task) :upcoming
-    :else :no-date))
+(defn group-tasks-by-date
+  "Groups tasks by their due date.
+   
+   Arguments:
+   - tasks: A sequence of tasks
+   
+   Returns a map of {date -> [tasks]} sorted by date.
+   Tasks without due dates are grouped under nil."
+  [tasks]
+  (->> tasks
+       (group-by :due-date)
+       (sort-by (fn [[date _]] 
+                  (if date 
+                    #?(:clj (.toEpochDay date)
+                       :cljs (.getTime date))
+                    js/Number.MAX_SAFE_INTEGER)))
+       (into {})))
+
   </script>
 
-  <!-- Simplified Plin Core for Scittle -->
+  <!-- Todo Domain Plugin -->
   <script type='application/x-scittle'>
-(ns plin.core)
-
-(defn load-plugins
-  [plugins]
-  (let [beans {}
-        merged-beans (reduce (fn [acc plugin]
-                               (if-let [plugin-beans (:beans plugin)]
-                                 (merge acc plugin-beans)
-                                 acc))
-                             beans
-                             plugins)
-        resolved-beans (into {} (map (fn [[k v]]
-                                      (if (and (vector? v) (= := (first v)))
-                                        [k (second v)]
-                                        [k v]))
-                                    merged-beans))]
-    resolved-beans))
-  </script>
-
-  <!-- Plin Boot -->
-  <script type='application/x-scittle'>
-(ns plin.boot)
-
-(defonce state
-  (atom {:container nil}))
+(ns todo.plugins.domain
+  "Plugin that exposes domain functions as injectable beans.
+   
+   This plugin wraps the pure functions from todo.domain namespace,
+   making them available for dependency injection. Other plugins should
+   depend on :todo/domain and inject these beans rather than requiring
+   the todo.domain namespace directly.
+   
+   This approach enables:
+   - Explicit dependency declarations via :deps
+   - Easy testing with mock implementations
+   - Clear visualization of the dependency graph"
+  (:require [plin.core :as pi]
+            [todo.domain :as domain]))
 
 (def plugin
-  {:id :plin.boot/plugin
-   :beans
-   {::boot-fn
-    [:= (fn [_container]
-          (println "Boot complete"))]}})
+  (pi/plugin
+   {:id :todo/domain
+    :doc "Core domain operations exposed as injectable beans."
+    :deps []
+    
+    :beans
+    {;; === Task List Operations ===
+     
+     ::create-task-list
+     ^{:doc "Creates a new empty task list."
+       :api {:ret :map}}
+     [:= domain/create-task-list]
+     
+     ::add-task
+     ^{:doc "Adds a new task to the task list.
+             Args: task-list, title, [due-date]"
+       :api {:args [["task-list" {} :map] ["title" {} :string] ["due-date" {:optional true} :any]]
+             :ret :map}}
+     [:= domain/add-task]
+     
+     ::toggle-task
+     ^{:doc "Toggles the completion status of a task.
+             Args: task-list, task-id"
+       :api {:args [["task-list" {} :map] ["task-id" {} :int]]
+             :ret :map}}
+     [:= domain/toggle-task]
+     
+     ::complete-task
+     ^{:doc "Marks a task as completed.
+             Args: task-list, task-id"
+       :api {:args [["task-list" {} :map] ["task-id" {} :int]]
+             :ret :map}}
+     [:= domain/complete-task]
+     
+     ::uncomplete-task
+     ^{:doc "Marks a task as not completed.
+             Args: task-list, task-id"
+       :api {:args [["task-list" {} :map] ["task-id" {} :int]]
+             :ret :map}}
+     [:= domain/uncomplete-task]
+     
+     ::delete-task
+     ^{:doc "Removes a task from the task list.
+             Args: task-list, task-id"
+       :api {:args [["task-list" {} :map] ["task-id" {} :int]]
+             :ret :map}}
+     [:= domain/delete-task]
+     
+     ::clear-completed
+     ^{:doc "Removes all completed tasks from the list.
+             Args: task-list"
+       :api {:args [["task-list" {} :map]]
+             :ret :map}}
+     [:= domain/clear-completed]
+     
+     ::set-due-date
+     ^{:doc "Sets or updates the due date for a task.
+             Args: task-list, task-id, due-date"
+       :api {:args [["task-list" {} :map] ["task-id" {} :int] ["due-date" {} :any]]
+             :ret :map}}
+     [:= domain/set-due-date]
+     
+     ::get-task
+     ^{:doc "Retrieves a single task by ID.
+             Args: task-list, task-id"
+       :api {:args [["task-list" {} :map] ["task-id" {} :int]]
+             :ret :map}}
+     [:= domain/get-task]
+     
+     ;; === Query Operations ===
+     
+     ::get-all-tasks
+     ^{:doc "Returns all tasks as a vector, sorted by creation time.
+             Args: task-list"
+       :api {:args [["task-list" {} :map]]
+             :ret :vector}}
+     [:= domain/get-all-tasks]
+     
+     ::get-active-tasks
+     ^{:doc "Returns all incomplete tasks.
+             Args: task-list"
+       :api {:args [["task-list" {} :map]]
+             :ret :vector}}
+     [:= domain/get-active-tasks]
+     
+     ::get-completed-tasks
+     ^{:doc "Returns all completed tasks.
+             Args: task-list"
+       :api {:args [["task-list" {} :map]]
+             :ret :vector}}
+     [:= domain/get-completed-tasks]
+     
+     ::get-overdue-tasks
+     ^{:doc "Returns all overdue tasks (past due date and not completed).
+             Args: task-list"
+       :api {:args [["task-list" {} :map]]
+             :ret :vector}}
+     [:= domain/get-overdue-tasks]
+     
+     ::get-tasks-due-today
+     ^{:doc "Returns all tasks due today.
+             Args: task-list"
+       :api {:args [["task-list" {} :map]]
+             :ret :vector}}
+     [:= domain/get-tasks-due-today]
+     
+     ::get-tasks-with-due-date
+     ^{:doc "Returns all tasks that have a due date set, sorted by due date.
+             Args: task-list"
+       :api {:args [["task-list" {} :map]]
+             :ret :vector}}
+     [:= domain/get-tasks-with-due-date]
+     
+     ;; === Date Utilities ===
+     
+     ::today
+     ^{:doc "Returns today's date.
+             On JVM: java.time.LocalDate, On JS: Date object"
+       :api {:ret :any}}
+     [:= domain/today]
+     
+     ::parse-date
+     ^{:doc "Parses a date string in YYYY-MM-DD format.
+             Returns nil if the string is empty or invalid.
+             Args: date-str"
+       :api {:args [["date-str" {} :string]]
+             :ret :any}}
+     [:= domain/parse-date]
+     
+     ::format-date
+     ^{:doc "Formats a date as YYYY-MM-DD string.
+             Returns empty string if date is nil.
+             Args: date"
+       :api {:args [["date" {} :any]]
+             :ret :string}}
+     [:= domain/format-date]
+     
+     ::days-until
+     ^{:doc "Calculates the number of days from today until the given date.
+             Returns nil if date is nil. Negative = overdue.
+             Args: date"
+       :api {:args [["date" {} :any]]
+             :ret :int}}
+     [:= domain/days-until]
+     
+     ;; === Task Predicates ===
+     
+     ::overdue?
+     ^{:doc "Returns true if the task is overdue.
+             Args: task"
+       :api {:args [["task" {} :map]]
+             :ret :boolean}}
+     [:= domain/overdue?]
+     
+     ::due-today?
+     ^{:doc "Returns true if the task is due today.
+             Args: task"
+       :api {:args [["task" {} :map]]
+             :ret :boolean}}
+     [:= domain/due-today?]
+     
+     ;; === Sorting & Grouping ===
+     
+     ::sort-by-urgency
+     ^{:doc "Sorts tasks by urgency (overdue first, then by due date).
+             Args: tasks (sequence)"
+       :api {:args [["tasks" {} :seq]]
+             :ret :vector}}
+     [:= domain/sort-by-urgency]
+     
+     ::group-tasks-by-date
+     ^{:doc "Groups tasks by their due date.
+             Args: tasks (sequence)"
+       :api {:args [["tasks" {} :seq]]
+             :ret :map}}
+     [:= domain/group-tasks-by-date]}}))
 
-(defn reload! []
-  (let [{:keys [all-plugins]} @state
-        container (plin.core/load-plugins all-plugins)
-        boot-fn (::boot-fn container)]
-    (swap! state assoc :container container)
-    (when boot-fn
-      (boot-fn container))
-    @state))
-
-(defn bootstrap! [plugins]
-  (let [full-list (vec (cons plugin plugins))]
-    (swap! state assoc :all-plugins full-list)
-    (reload!)))
   </script>
 
-  <!-- Persistence Interface Plugin -->
+  <!-- Todo Persistence Plugin -->
   <script type='application/x-scittle'>
-(ns todo.plugins.persistence)
+(ns todo.plugins.persistence
+  "Interface plugin for task persistence.
+   
+   This plugin defines the persistence API as beans with trivial (atom-based)
+   default implementations using proper DI (no defonce global state).
+   
+   Platform-specific plugins should override these beans to provide real
+   persistence implementations:
+   - :todo/memory-store - In-memory storage (cross-platform)
+   - :todo/disk-store - File-based storage (JVM only)
+   - :todo/local-storage - Browser localStorage (browser only)
+   
+   Dependencies:
+   - :todo/domain - for create-task-list function
+   
+   Beans defined:
+   - ::store-atom - The storage atom (can be overridden)
+   - ::store-fn - Function to save tasks
+   - ::load-fn - Function to load tasks  
+   - ::delete-fn - Function to delete all tasks"
+  (:require [plin.core :as pi]))
 
-(defonce memory-store (atom nil))
+;; =============================================================================
+;; Factory Functions (all receive dependencies via DI)
+;; =============================================================================
 
-(defn- trivial-store-fn [task-list]
-  (reset! memory-store task-list))
+(defn make-store-atom
+  "Factory: creates a new atom for storage.
+   This is a bean so it can be overridden for testing or shared state scenarios."
+  []
+  (atom nil))
 
-(defn- trivial-load-fn []
-  (or @memory-store (todo.domain/create-task-list)))
+(defn make-load-fn
+  "Factory: creates load function with injected store-atom and create-task-list."
+  [store-atom create-task-list]
+  (fn []
+    (or @store-atom (create-task-list))))
 
-(defn- trivial-delete-fn []
-  (reset! memory-store nil))
+(defn make-store-fn
+  "Factory: creates store function with injected store-atom."
+  [store-atom]
+  (fn [task-list]
+    (reset! store-atom task-list)))
+
+(defn make-delete-fn
+  "Factory: creates delete function with injected store-atom."
+  [store-atom]
+  (fn []
+    (reset! store-atom nil)))
+
+;; =============================================================================
+;; Plugin Definition
+;; =============================================================================
 
 (def plugin
-  {:id :todo/persistence
-   :deps []
-   :beans
-   {::store-fn [:= trivial-store-fn]
-    ::load-fn [:= trivial-load-fn]
-    ::delete-fn [:= trivial-delete-fn]}})
+  (pi/plugin
+   {:id :todo/persistence
+    :doc "Persistence interface for tasks with trivial in-memory defaults. Override beans to provide real storage."
+    :deps []
+    
+    :beans
+    {;; The storage atom itself is a bean - enables testing and isolation
+     ::store-atom
+     ^{:doc "Atom used for in-memory storage. Override for different storage backends."}
+     [make-store-atom]
+     
+     ::store-fn
+     ^{:doc "Function to save tasks. Receives a task list."
+       :api {:args [["task-list" {} :map]]
+             :ret :nil}}
+     [make-store-fn ::store-atom]
+
+     ::load-fn
+     ^{:doc "Function to load tasks. Returns a task list."
+       :api {:ret :map}}
+     [make-load-fn ::store-atom :todo.plugins.domain/create-task-list]
+
+     ::delete-fn
+     ^{:doc "Function to delete all tasks."
+       :api {:ret :nil}}
+     [make-delete-fn ::store-atom]}}))
+
   </script>
 
-  <!-- Deadlines Plugin -->
+  <!-- Todo Deadlines Plugin -->
   <script type='application/x-scittle'>
-(ns todo.plugins.deadlines)
+(ns todo.plugins.deadlines
+  "Deadline management plugin for the Todo application.
+   
+   This plugin provides beans for working with task deadlines:
+   - ::overdue-tasks - Returns all overdue tasks
+   - ::tasks-due-today - Returns tasks due today
+   - ::urgency-comparator - Function to compare tasks by urgency
+   - ::format-due-date - Function to format due dates for display
+   - ::due-date-status - Function to get status label for a task's due date
+   
+   Platform-specific plugins can redefine these beans to customize
+   the deadline display and behavior."
+  (:require [plin.core :as pi]
+            [todo.domain :as domain]))
 
-(defn default-format-due-date [date]
+;; --- Default implementations ---
+
+(defn default-format-due-date
+  "Default due date formatter. Returns a simple string representation.
+   Can be redefined by platform plugins for locale-specific formatting."
+  [date]
   (if date
-    (todo.domain/format-date date)
+    (domain/format-date date)
     "No due date"))
 
-(defn default-due-date-status [task]
-  (todo.domain/due-date-status task))
+(defn default-due-date-status
+  "Returns a status keyword for the task's due date.
+   :overdue - past due date, not completed
+   :due-today - due today
+   :upcoming - has a future due date
+   :no-date - no due date set
+   :completed - task is completed (regardless of due date)"
+  [task]
+  (cond
+    (:completed task) :completed
+    (domain/overdue? task) :overdue
+    (domain/due-today? task) :due-today
+    (:due-date task) :upcoming
+    :else :no-date))
 
-(defn default-status-label [status]
+(defn default-status-label
+  "Returns a human-readable label for the due date status.
+   Can be redefined by platform plugins for different text or styling."
+  [status]
   (case status
     :overdue "Overdue"
     :due-today "Due Today"
@@ -271,31 +2039,101 @@
     :completed "Done"
     ""))
 
+(defn default-urgency-comparator
+  "Comparator function for sorting tasks by urgency.
+   Overdue tasks first, then by days until due, then tasks without due dates."
+  [task-a task-b]
+  (let [days-a (when (:due-date task-a) (domain/days-until (:due-date task-a)))
+        days-b (when (:due-date task-b) (domain/days-until (:due-date task-b)))]
+    (cond
+      ;; Both have due dates - compare by days
+      (and days-a days-b) (compare days-a days-b)
+      ;; Only a has due date - a comes first
+      days-a -1
+      ;; Only b has due date - b comes first
+      days-b 1
+      ;; Neither has due date - equal
+      :else 0)))
+
+;; --- Plugin Definition ---
+
 (def plugin
-  {:id :todo/deadlines
-   :deps []
-   :beans
-   {::format-due-date [:= default-format-due-date]
-    ::due-date-status [:= default-due-date-status]
-    ::status-label [:= default-status-label]}})
+  (pi/plugin
+   {:id :todo/deadlines
+    :doc "Deadline management for tasks. Provides beans for deadline calculations and formatting."
+    :deps []
+    
+    :beans
+    {::format-due-date
+     ^{:doc "Function to format a due date for display.
+             Takes a date and returns a string.
+             Redefine this in platform plugins for custom formatting."
+       :api {:args [["date" {} :any]] :ret :string}}
+     [:= default-format-due-date]
+     
+     ::due-date-status
+     ^{:doc "Function to get the due date status for a task.
+             Returns one of: :overdue, :due-today, :upcoming, :no-date, :completed"
+       :api {:args [["task" {} :map]] :ret :keyword}}
+     [:= default-due-date-status]
+     
+     ::status-label
+     ^{:doc "Function to get a human-readable label for a due date status.
+             Takes a status keyword, returns a string."
+       :api {:args [["status" {} :keyword]] :ret :string}}
+     [:= default-status-label]
+     
+     ::urgency-comparator
+     ^{:doc "Comparator function for sorting tasks by urgency.
+             Redefine this to customize sort order."
+       :api {:args [["task-a" {} :map] ["task-b" {} :map]] :ret :int}}
+     [:= default-urgency-comparator]}}))
+
   </script>
 
-  <!-- Calendar Plugin -->
+  <!-- Todo Calendar Plugin -->
   <script type='application/x-scittle'>
-(ns todo.plugins.calendar)
+(ns todo.plugins.calendar
+  "Calendar/Agenda view plugin for the Todo application.
+   
+   This plugin provides beans for displaying tasks in a calendar/agenda format:
+   - ::calendar-data - Prepares task data grouped by date for rendering
+   - ::render-calendar - Renders the calendar view (default: simple text list)
+   - ::render-task-in-calendar - Renders a single task within the calendar
+   
+   Platform-specific plugins should REDEFINE ::render-calendar to provide
+   appropriate rendering for their platform (HTML, TUI, Reagent, etc.)."
+  (:require [plin.core :as pi]
+            [todo.domain :as domain]
+            [todo.plugins.deadlines :as deadlines]))
 
-(defn prepare-calendar-data [task-list due-date-status-fn]
-  (let [all-tasks (todo.domain/get-active-tasks task-list)
+;; --- Calendar Data Preparation ---
+
+(defn prepare-calendar-data
+  "Prepares task data for calendar rendering.
+   
+   Returns a map with:
+   - :today - Today's date
+   - :overdue - Vector of overdue tasks (sorted by due date)
+   - :today-tasks - Vector of tasks due today
+   - :upcoming - Map of {date -> [tasks]} for future dates
+   - :no-date - Vector of tasks without due dates
+   - :stats - Map with counts {:total :overdue :due-today :upcoming :no-date}"
+  [task-list due-date-status-fn]
+  (let [all-tasks (domain/get-active-tasks task-list)
         grouped (group-by due-date-status-fn all-tasks)
-        overdue (sort-by #(todo.domain/days-until (:due-date %)) (:overdue grouped))
+        overdue (sort-by #(domain/days-until (:due-date %)) (:overdue grouped))
         today-tasks (:due-today grouped)
         upcoming-tasks (:upcoming grouped)
         no-date (:no-date grouped)
+        ;; Group upcoming by date
         upcoming-by-date (->> upcoming-tasks
                               (group-by :due-date)
-                              (sort-by (fn [[date _]] (.getTime date)))
+                              (sort-by (fn [[date _]] 
+                                        #?(:clj (.toEpochDay date)
+                                           :cljs (.getTime date))))
                               (into {}))]
-    {:today (todo.domain/today)
+    {:today (domain/today)
      :overdue (vec overdue)
      :today-tasks (vec today-tasks)
      :upcoming upcoming-by-date
@@ -306,272 +2144,592 @@
              :upcoming (count upcoming-tasks)
              :no-date (count no-date)}}))
 
-(def plugin
-  {:id :todo/calendar
-   :deps []
-   :beans
-   {::calendar-data [:= prepare-calendar-data]}})
-  </script>
+;; --- Default Renderers ---
 
-  <!-- LocalStorage Persistence Plugin -->
-  <script type='application/x-scittle'>
-(ns todo-browser.plugins.local-storage)
+(defn default-render-task
+  "Default task renderer for calendar view. Returns a plain text string.
+   Platform plugins should redefine this for richer rendering."
+  [task format-due-date-fn status-label-fn]
+  (let [status (deadlines/default-due-date-status task)
+        label (status-label-fn status)]
+    (str "  - " (:title task)
+         (when (seq label) (str " [" label "]"))
+         (when (:due-date task) 
+           (str " (due: " (format-due-date-fn (:due-date task)) ")")))))
 
-(defn- load-tasks []
-  (if-let [stored (.getItem js/localStorage "todo-tasks")]
-    (let [parsed (js/JSON.parse stored)
-          tasks (into {} (map (fn [[k v]] 
-                                (let [task-data (js->clj v :keywordize-keys true)
-                                      ;; Parse due-date if present
-                                      due-date (when-let [d (:due-date task-data)]
-                                                 (todo.domain/parse-date d))]
-                                  [(js/parseInt k) 
-                                   (todo.domain/map->Task (assoc task-data :due-date due-date))])) 
-                              (js->clj parsed)))]
-      (if (seq tasks)
-        (assoc (todo.domain/create-task-list) 
-               :tasks tasks 
-               :next-id (inc (apply max (keys tasks))))
-        (todo.domain/create-task-list)))
-    (todo.domain/create-task-list)))
-
-(defn- save-tasks [task-list]
-  ;; Convert dates to strings for JSON serialization
-  (let [tasks-with-string-dates 
-        (into {} (map (fn [[k task]]
-                        [k (update task :due-date #(when % (todo.domain/format-date %)))])
-                      (:tasks task-list)))
-        tasks (clj->js tasks-with-string-dates)]
-    (.setItem js/localStorage "todo-tasks" (js/JSON.stringify tasks))))
-
-(defn- delete-tasks []
-  (.removeItem js/localStorage "todo-tasks"))
-
-(def plugin
-  {:id :todo-browser/local-storage
-   :deps [:todo/persistence]
-   :beans
-   {::store-fn [:= save-tasks]
-    ::load-fn [:= load-tasks]
-    ::delete-fn [:= delete-tasks]}})
-  </script>
-
-  <!-- Browser Boot Plugin with Calendar UI -->
-  <script type='application/x-scittle'>
-(ns todo-browser.plugins.browser-boot)
-
-(defn- create-app-state [container]
-  (let [load-fn (get container :todo.plugins.persistence/load-fn)]
-    (reagent.core/atom {:view :list  ;; :list or :calendar
-                        :filter :all
-                        :task-list (load-fn)})))
-
-(defn- save-tasks! [container task-list]
-  (let [store-fn (get container :todo.plugins.persistence/store-fn)]
-    (store-fn task-list)))
-
-;; Task Item Component
-(defn- task-item [app-state container task]
-  (let [status (todo.domain/due-date-status task)
-        status-class (name status)
-        due-date-str (when (:due-date task) (todo.domain/format-date (:due-date task)))]
-    [:div.task {:class status-class}
-     [:input {:type "checkbox"
-              :checked (:completed task)
-              :on-change #(let [new-state (swap! app-state 
-                                                  update :task-list 
-                                                  todo.domain/toggle-task (:id task))]
-                            (save-tasks! container (:task-list new-state)))}]
-     [:span.task-title (:title task)]
-     (when due-date-str
-       [:span.task-due {:class status-class} due-date-str])
-     [:input.due-input {:type "date"
-                        :value (or due-date-str "")
-                        :on-change #(let [new-date (todo.domain/parse-date (.. % -target -value))
-                                          new-state (swap! app-state 
-                                                           update :task-list 
-                                                           todo.domain/set-due-date (:id task) new-date)]
-                                      (save-tasks! container (:task-list new-state)))}]
-     [:button {:on-click #(let [new-state (swap! app-state 
-                                                  update :task-list 
-                                                  todo.domain/delete-task (:id task))]
-                            (save-tasks! container (:task-list new-state)))} 
-      "Delete"]]))
-
-;; Task List View
-(defn- task-list-view [app-state container]
-  (let [{:keys [filter task-list]} @app-state
-        tasks (case filter
-                :active (todo.domain/get-active-tasks task-list)
-                :completed (todo.domain/get-completed-tasks task-list)
-                :overdue (todo.domain/get-overdue-tasks task-list)
-                (todo.domain/get-all-tasks task-list))
-        sorted-tasks (todo.domain/sort-by-urgency tasks)]
-    [:div.tasks
-     (if (empty? sorted-tasks)
-       [:div.empty "No tasks to display"]
-       (for [task sorted-tasks]
-         ^{:key (:id task)} [task-item app-state container task]))]))
-
-;; Add Task Form
-(defn- add-task-form [app-state container]
-  (let [new-task (reagent.core/atom "")
-        new-due-date (reagent.core/atom "")]
-    (fn []
-      [:form.add-form {:on-submit (fn [e]
-                                    (.preventDefault e)
-                                    (when (seq @new-task)
-                                      (let [due-date (todo.domain/parse-date @new-due-date)
-                                            new-state (swap! app-state 
-                                                             update :task-list 
-                                                             todo.domain/add-task @new-task due-date)]
-                                        (save-tasks! container (:task-list new-state)))
-                                      (reset! new-task "")
-                                      (reset! new-due-date "")))}
-       [:input {:type "text"
-                :placeholder "What needs to be done?"
-                :value @new-task
-                :on-change #(reset! new-task (.. % -target -value))}]
-       [:input {:type "date"
-                :value @new-due-date
-                :on-change #(reset! new-due-date (.. % -target -value))}]
-       [:button {:type "submit"} "Add Task"]])))
-
-;; Filter Links
-(defn- filter-links [app-state]
-  (let [current-filter (:filter @app-state)]
-    [:div.filters
-     [:a {:class (when (= current-filter :all) "active")
-          :on-click #(swap! app-state assoc :filter :all)} "All"]
-     [:a {:class (when (= current-filter :active) "active")
-          :on-click #(swap! app-state assoc :filter :active)} "Active"]
-     [:a {:class (when (= current-filter :overdue) "active")
-          :on-click #(swap! app-state assoc :filter :overdue)} "Overdue"]
-     [:a {:class (when (= current-filter :completed) "active")
-          :on-click #(swap! app-state assoc :filter :completed)} "Completed"]]))
-
-;; Navigation
-(defn- nav-links [app-state]
-  (let [current-view (:view @app-state)]
-    [:nav.nav
-     [:a {:class (when (= current-view :list) "active")
-          :on-click #(swap! app-state assoc :view :list)} "Task List"]
-     [:a {:class (when (= current-view :calendar) "active")
-          :on-click #(swap! app-state assoc :view :calendar)} "Calendar View"]]))
-
-;; Calendar Section Component
-(defn- calendar-section [title section-class tasks]
-  (when (seq tasks)
-    [:div.calendar-section {:class section-class}
-     [:h3 title]
-     (for [task tasks]
-       ^{:key (:id task)}
-       [:div.calendar-task
-        [:span.task-title (:title task)]
-        (when (:due-date task)
-          [:span.task-due (todo.domain/format-date (:due-date task))])])]))
-
-;; Calendar View
-(defn- calendar-view [app-state container]
-  (let [task-list (:task-list @app-state)
-        cal-data (todo.plugins.calendar/prepare-calendar-data 
-                  task-list 
-                  todo.domain/due-date-status)
-        {:keys [overdue today-tasks upcoming no-date stats]} cal-data]
-    [:div.calendar-view
-     [:div.calendar-stats
-      [:span.stat "Total: " [:strong (:total stats)]]
-      [:span.stat.overdue "Overdue: " [:strong (:overdue stats)]]
-      [:span.stat.due-today "Due today: " [:strong (:due-today stats)]]
-      [:span.stat "Upcoming: " [:strong (:upcoming stats)]]
-      [:span.stat "No date: " [:strong (:no-date stats)]]]
+(defn default-render-calendar
+  "Default calendar renderer. Returns a plain text representation.
+   
+   This is the main bean that platform-specific plugins should REDEFINE
+   to provide HTML, TUI, or Reagent-based rendering.
+   
+   Arguments:
+   - calendar-data: The prepared calendar data from prepare-calendar-data
+   - render-task-fn: Function to render a single task
+   - format-date-fn: Function to format dates
+   
+   Returns a string representation of the calendar."
+  [calendar-data render-task-fn format-date-fn]
+  (let [{:keys [overdue today-tasks upcoming no-date stats]} calendar-data]
+    (str
+     "=== Task Calendar ===\n"
+     "Total active: " (:total stats) 
+     " | Overdue: " (:overdue stats)
+     " | Due today: " (:due-today stats)
+     " | Upcoming: " (:upcoming stats)
+     " | No date: " (:no-date stats)
+     "\n\n"
      
-     [calendar-section "Overdue" "overdue" overdue]
-     [calendar-section "Due Today" "due-today" today-tasks]
+     ;; Overdue section
+     (when (seq overdue)
+       (str "!! OVERDUE !!\n"
+            (apply str (map #(str (render-task-fn %) "\n") overdue))
+            "\n"))
      
+     ;; Today section
+     (when (seq today-tasks)
+       (str "TODAY\n"
+            (apply str (map #(str (render-task-fn %) "\n") today-tasks))
+            "\n"))
+     
+     ;; Upcoming section (grouped by date)
      (when (seq upcoming)
-       [:div.calendar-section.upcoming
-        [:h3 "Upcoming"]
-        (for [[date tasks] upcoming]
-          ^{:key (str date)}
-          [:div.date-group
-           [:h4 (todo.domain/format-date date)]
-           (for [task tasks]
-             ^{:key (:id task)}
-             [:div.calendar-task
-              [:span.task-title (:title task)]])])])
+       (apply str
+              (for [[date tasks] upcoming]
+                (str (format-date-fn date) "\n"
+                     (apply str (map #(str (render-task-fn %) "\n") tasks))
+                     "\n"))))
      
-     [calendar-section "No Due Date" "no-date" no-date]
-     
-     (when (zero? (:total stats))
-       [:div.calendar-empty "No active tasks"])]))
+     ;; No date section
+     (when (seq no-date)
+       (str "NO DUE DATE\n"
+            (apply str (map #(str (render-task-fn %) "\n") no-date)))))))
 
-;; Main App Component
-(defn- app-component [app-state container]
-  (let [task-list (:task-list @app-state)
-        active-count (count (todo.domain/get-active-tasks task-list))
-        completed-count (count (todo.domain/get-completed-tasks task-list))
-        overdue-count (count (todo.domain/get-overdue-tasks task-list))
-        current-view (:view @app-state)]
-    [:div.app-container
-     [:h1 "Todo List"]
-     [nav-links app-state]
-     
-     (if (= current-view :calendar)
-       [calendar-view app-state container]
-       [:<>
-        [add-task-form app-state container]
-        [filter-links app-state]
-        [task-list-view app-state container]
-        [:div.actions
-         [:button {:on-click #(let [new-state (swap! app-state 
-                                                      (fn [s]
-                                                        (-> s
-                                                            (update :task-list todo.domain/clear-completed)
-                                                            (assoc :filter :all))))]
-                                (save-tasks! container (:task-list new-state)))} 
-          "Clear Completed"]]])
-     
-     [:div.stats 
-      (str active-count " active, " completed-count " completed")
-      (when (pos? overdue-count)
-        [:span.overdue (str ", " overdue-count " overdue")])]]))
+;; --- Plugin Definition ---
 
-(defn- mount-app [container]
-  (let [app-state (create-app-state container)]
-    (reagent.dom/render [app-component app-state container] 
-                 (.getElementById js/document "app"))))
+(def plugin
+  (pi/plugin
+   {:id :todo/calendar
+    :doc "Calendar/Agenda view for tasks. Groups tasks by due date and renders them."
+    :deps []
+    
+    :beans
+    {::calendar-data
+     ^{:doc "Function to prepare calendar data from a task list.
+             Takes task-list and due-date-status-fn, returns structured data."
+       :api {:args [["task-list" {} :map] ["due-date-status-fn" {} :fn]]
+             :ret :map}}
+     [:= prepare-calendar-data]
+     
+     ::render-task
+     ^{:doc "Function to render a single task in the calendar view.
+             Takes task, format-due-date-fn, and status-label-fn.
+             Returns a renderable representation (string by default).
+             Redefine in platform plugins for HTML/TUI rendering."
+       :api {:args [["task" {} :map] ["format-due-date-fn" {} :fn] ["status-label-fn" {} :fn]]
+             :ret :any}}
+     [:= default-render-task]
+     
+     ::render-calendar
+     ^{:doc "Function to render the full calendar view.
+             Takes calendar-data, render-task-fn, and format-date-fn.
+             Returns a renderable representation (string by default).
+             
+             THIS IS THE MAIN BEAN TO REDEFINE in platform-specific plugins
+             to provide HTML tables, TUI grids, or Reagent components."
+       :api {:args [["calendar-data" {} :map] ["render-task-fn" {} :fn] ["format-date-fn" {} :fn]]
+             :ret :any}}
+     [:= default-render-calendar]}}))
 
-(defn- boot-fn [container]
+  </script>
+
+  <!-- Local Storage Plugin -->
+  <script type='application/x-scittle'>
+(ns todo-browser.plugins.local-storage
+  "LocalStorage-based persistence implementation for the browser.
+   
+   This plugin demonstrates FULL DEPENDENCY INJECTION:
+   - The storage key is a bean (::storage-key) that can be overridden
+   - All functions receive dependencies via DI
+   - Uses JSON format for browser localStorage compatibility
+   
+   Dependencies:
+   - :todo/persistence - the interface this plugin implements
+   - :todo/domain - for create-task-list and map->Task (injected)
+   
+   Beans defined:
+   - ::storage-key - The localStorage key (default: \"todo-tasks\")
+   - Overrides :todo.plugins.persistence/load-fn
+   - Overrides :todo.plugins.persistence/store-fn
+   - Overrides :todo.plugins.persistence/delete-fn"
+  (:require [plin.core :as plin]
+            [todo.plugins.persistence :as persistence]))
+
+;; =============================================================================
+;; Factory Functions (all receive dependencies via DI)
+;; =============================================================================
+
+(defn make-storage-key
+  "Factory: creates the default localStorage key.
+   Can be overridden to use a different key."
+  []
+  "todo-tasks")
+
+(defn make-load-fn
+  "Factory: creates load function with injected storage-key and create-task-list."
+  [storage-key create-task-list]
+  (fn []
+    (if-let [stored (.getItem js/localStorage storage-key)]
+      (try
+        (let [parsed (js/JSON.parse stored)
+              data (js->clj parsed :keywordize-keys true)]
+           ;; Reconstruct the task-list structure
+           ;; Parse due-date strings back to Date objects
+           (if (and (:tasks data) (seq (:tasks data)))
+             {:tasks (into {} 
+                           (map (fn [[k v]]
+                                  [(if (string? k) (js/parseInt k) k)
+                                   (-> v
+                                       (update :id #(if (string? %) (js/parseInt %) %))
+                                       (update :due-date #(when %
+                                                            (if (string? %)
+                                                              (js/Date. %)
+                                                              %))))])
+                                (:tasks data)))
+              :next-id (or (:next-id data) 
+                           (inc (apply max (map #(if (string? %) (js/parseInt %) %) 
+                                                (keys (:tasks data))))))}
+             (create-task-list)))
+        (catch :default e
+          (js/console.warn "Could not parse localStorage data, starting fresh:" e)
+          (create-task-list)))
+      (create-task-list))))
+
+(defn make-store-fn
+  "Factory: creates store function with injected storage-key."
+  [storage-key]
+  (fn [task-list]
+    (.setItem js/localStorage storage-key (js/JSON.stringify (clj->js task-list)))))
+
+(defn make-delete-fn
+  "Factory: creates delete function with injected storage-key."
+  [storage-key]
+  (fn []
+    (.removeItem js/localStorage storage-key)))
+
+;; =============================================================================
+;; Plugin Definition
+;; =============================================================================
+
+(def plugin
+  (plin.core/plugin
+   {:id :todo/local-storage
+    :doc "Browser localStorage persistence implementation with proper DI."
+     :deps [persistence/plugin]
+    
+    :beans
+    {;; The storage key is a bean - can be overridden for different apps
+     ::storage-key
+     ^{:doc "LocalStorage key for storing tasks. Override for namespacing."}
+     [make-storage-key]
+
+     ;; Override persistence interface beans
+     :todo.plugins.persistence/load-fn
+     ^{:doc "Load tasks from localStorage. Returns new task list if not found."
+       :api {:ret :map}}
+     [make-load-fn ::storage-key :todo.plugins.domain/create-task-list]
+
+     :todo.plugins.persistence/store-fn
+     ^{:doc "Save tasks to localStorage as JSON."
+       :api {:args [["task-list" {} :map]] :ret :nil}}
+     [make-store-fn ::storage-key]
+
+     :todo.plugins.persistence/delete-fn
+     ^{:doc "Remove tasks from localStorage."
+       :api {:ret :nil}}
+     [make-delete-fn ::storage-key]}}))
+
+  </script>
+
+  <!-- Browser Boot Plugin -->
+  <script type='application/x-scittle'>
+(ns todo-browser.plugins.browser-boot
+  "Browser-specific boot implementation for the Todo app.
+   
+   This plugin demonstrates FULL DEPENDENCY INJECTION:
+   - NO direct requires of domain, deadlines, or calendar namespaces
+   - ALL functionality comes through injected beans
+   - UI components receive exactly the dependencies they need via factory closure
+   - The boot function receives a pre-configured mount-app function
+   
+   Dependencies:
+   - :todo/persistence - for load-fn, store-fn
+   - :todo/domain - for task operations (add, toggle, delete, etc.)
+   - :todo/deadlines - for due-date-status, format-due-date
+   - :todo/calendar - for calendar-data
+   
+   Features:
+   - Task list with checkboxes and due dates
+   - Add tasks with optional due dates
+   - Toggle, delete, clear completed
+   - Filter by All/Active/Overdue/Completed
+   - Calendar/agenda view
+   - Overdue task highlighting"
+  (:require [plin.core :as plin]
+            [reagent.core :as r]
+            [reagent.dom :as rdom]
+            [todo.plugins.deadlines :as deadlines]
+            [todo.plugins.calendar :as calendar]))
+
+;; =============================================================================
+;; Factory: Creates the entire UI with dependencies closed over
+;; =============================================================================
+
+(defn make-app-component
+  "Factory: creates the app component with all dependencies injected.
+   
+   Dependencies (injected):
+   - load-fn, store-fn: persistence operations
+   - get-all-tasks, get-active-tasks, get-completed-tasks, get-overdue-tasks: query fns
+   - sort-by-urgency: sorting fn
+   - add-task, toggle-task, delete-task, clear-completed, set-due-date: mutation fns
+   - parse-date, format-date: date utilities
+   - due-date-status: status calculation
+   - calendar-data-fn: calendar data preparation"
+  [load-fn store-fn
+   get-all-tasks get-active-tasks get-completed-tasks get-overdue-tasks
+   sort-by-urgency
+   add-task toggle-task delete-task clear-completed set-due-date
+   parse-date format-date
+   due-date-status calendar-data-fn]
+  
+  (let [;; Helper to save tasks
+        save-tasks! (fn [task-list] (store-fn task-list))
+        
+        ;; Task item component
+        task-item (fn [app-state task]
+                    (let [status (due-date-status task)
+                          status-class (name status)
+                          due-date-str (when (:due-date task) (format-date (:due-date task)))]
+                      [:div.task {:class status-class}
+                       [:input {:type "checkbox"
+                                :checked (:completed task)
+                                :on-change #(let [new-state (swap! app-state 
+                                                                   update :task-list 
+                                                                   toggle-task (:id task))]
+                                              (save-tasks! (:task-list new-state)))}]
+                       [:span.task-title (:title task)]
+                       (when due-date-str
+                         [:span.task-due {:class status-class} due-date-str])
+                       [:input.due-input {:type "date"
+                                          :value (or due-date-str "")
+                                          :on-change #(let [new-date (parse-date (.. % -target -value))
+                                                            new-state (swap! app-state 
+                                                                             update :task-list 
+                                                                             set-due-date (:id task) new-date)]
+                                                        (save-tasks! (:task-list new-state)))}]
+                       [:button {:on-click #(let [new-state (swap! app-state 
+                                                                   update :task-list 
+                                                                   delete-task (:id task))]
+                                              (save-tasks! (:task-list new-state)))} 
+                        "Delete"]]))
+        
+        ;; Task list view component
+        task-list-view (fn [app-state]
+                         (let [{:keys [filter task-list]} @app-state
+                               tasks (case filter
+                                       :active (get-active-tasks task-list)
+                                       :completed (get-completed-tasks task-list)
+                                       :overdue (get-overdue-tasks task-list)
+                                       (get-all-tasks task-list))
+                               sorted-tasks (sort-by-urgency tasks)]
+                           [:div.tasks
+                            (if (empty? sorted-tasks)
+                              [:div.empty "No tasks to display"]
+                              (for [task sorted-tasks]
+                                ^{:key (:id task)} [task-item app-state task]))]))
+        
+        ;; Add task form component
+        add-task-form (fn [app-state]
+                        (let [new-task (reagent.core/atom "")
+                              new-due-date (reagent.core/atom "")]
+                          (fn []
+                            [:form.add-form {:on-submit (fn [e]
+                                                          (.preventDefault e)
+                                                          (when (seq @new-task)
+                                                            (let [due-date (parse-date @new-due-date)
+                                                                  new-state (swap! app-state 
+                                                                                   update :task-list 
+                                                                                   add-task @new-task due-date)]
+                                                              (save-tasks! (:task-list new-state)))
+                                                            (reset! new-task "")
+                                                            (reset! new-due-date "")))}
+                             [:input {:type "text"
+                                      :placeholder "What needs to be done?"
+                                      :value @new-task
+                                      :on-change #(reset! new-task (.. % -target -value))}]
+                             [:input {:type "date"
+                                      :value @new-due-date
+                                      :on-change #(reset! new-due-date (.. % -target -value))}]
+                             [:button {:type "submit"} "Add Task"]])))
+        
+        ;; Filter links component
+        filter-links (fn [app-state]
+                       (let [current-filter (:filter @app-state)]
+                         [:div.filters
+                          [:a {:class (when (= current-filter :all) "active")
+                               :on-click #(swap! app-state assoc :filter :all)} "All"]
+                          [:a {:class (when (= current-filter :active) "active")
+                               :on-click #(swap! app-state assoc :filter :active)} "Active"]
+                          [:a {:class (when (= current-filter :overdue) "active")
+                               :on-click #(swap! app-state assoc :filter :overdue)} "Overdue"]
+                          [:a {:class (when (= current-filter :completed) "active")
+                               :on-click #(swap! app-state assoc :filter :completed)} "Completed"]]))
+        
+        ;; Navigation links component
+        nav-links (fn [app-state]
+                    (let [current-view (:view @app-state)]
+                      [:nav.nav
+                       [:a {:class (when (= current-view :list) "active")
+                            :on-click #(swap! app-state assoc :view :list)} "Task List"]
+                       [:a {:class (when (= current-view :calendar) "active")
+                            :on-click #(swap! app-state assoc :view :calendar)} "Calendar View"]]))
+        
+        ;; Calendar section component
+        calendar-section (fn [title section-class tasks]
+                           (when (seq tasks)
+                             [:div.calendar-section {:class section-class}
+                              [:h3 title]
+                              (for [task tasks]
+                                ^{:key (:id task)}
+                                [:div.calendar-task
+                                 [:span.task-title (:title task)]
+                                 (when (:due-date task)
+                                   [:span.task-due (format-date (:due-date task))])])]))
+        
+        ;; Calendar view component
+        calendar-view (fn [app-state]
+                        (let [task-list (:task-list @app-state)
+                              cal-data (calendar-data-fn task-list due-date-status)
+                              {:keys [overdue today-tasks upcoming no-date stats]} cal-data]
+                          [:div.calendar-view
+                           [:div.calendar-stats
+                            [:span.stat "Total: " [:strong (:total stats)]]
+                            [:span.stat.overdue "Overdue: " [:strong (:overdue stats)]]
+                            [:span.stat.due-today "Due today: " [:strong (:due-today stats)]]
+                            [:span.stat "Upcoming: " [:strong (:upcoming stats)]]
+                            [:span.stat "No date: " [:strong (:no-date stats)]]]
+                           
+                           [calendar-section "Overdue" "overdue" overdue]
+                           [calendar-section "Due Today" "due-today" today-tasks]
+                           
+                           (when (seq upcoming)
+                             [:div.calendar-section.upcoming
+                              [:h3 "Upcoming"]
+                              (for [[date tasks] upcoming]
+                                ^{:key (str date)}
+                                [:div.date-group
+                                 [:h4 (format-date date)]
+                                 (for [task tasks]
+                                   ^{:key (:id task)}
+                                   [:div.calendar-task
+                                    [:span.task-title (:title task)]])])])
+                           
+                           [calendar-section "No Due Date" "no-date" no-date]
+                           
+                           (when (zero? (:total stats))
+                             [:div.calendar-empty "No active tasks"])]))]
+    
+    ;; Return the main app component function
+    (fn []
+      (let [app-state (reagent.core/atom {:view :list
+                               :filter :all
+                               :task-list (load-fn)})]
+        (fn []
+          (let [task-list (:task-list @app-state)
+                active-count (count (get-active-tasks task-list))
+                completed-count (count (get-completed-tasks task-list))
+                overdue-count (count (get-overdue-tasks task-list))
+                current-view (:view @app-state)]
+            [:div.app-container
+             [:h1 "Todo List"]
+             [nav-links app-state]
+             
+             (if (= current-view :calendar)
+               [calendar-view app-state]
+               [:<>
+                [add-task-form app-state]
+                [filter-links app-state]
+                [task-list-view app-state]
+                [:div.actions
+                 [:button {:on-click #(let [new-state (swap! app-state 
+                                                              (fn [s]
+                                                                (-> s
+                                                                    (update :task-list clear-completed)
+                                                                    (assoc :filter :all))))]
+                                        (save-tasks! (:task-list new-state)))} 
+                  "Clear Completed"]]])
+             
+             [:div.stats 
+              (str active-count " active, " completed-count " completed")
+              (when (pos? overdue-count)
+                [:span.overdue (str ", " overdue-count " overdue")])]]))))))
+
+;; =============================================================================
+;; Mount Function Factory
+;; =============================================================================
+
+(defn make-mount-app
+  "Factory: creates mount-app function with injected app component."
+  [app-component]
+  (fn []
+    (reagent.dom/render [app-component] 
+                        (.getElementById js/document "app"))))
+
+;; =============================================================================
+;; Boot Function
+;; =============================================================================
+
+(defn boot-fn
+  "Boot function - receives mount-app (injected) and container (from plin.boot)."
+  [mount-app _container]
   (println "Booting browser Todo app...")
-  (mount-app container)
+  (mount-app)
   (println "Todo app mounted successfully!"))
 
+;; =============================================================================
+;; Plugin Definition
+;; =============================================================================
+
 (def plugin
-  {:id :todo-browser/boot
-   :deps [:plin.boot/plugin]
-   :beans
-   {:plin.boot/boot-fn [:= boot-fn]}})
+  (plin.core/plugin
+   {:id :todo-browser/boot
+    :doc "Browser boot with fully injected dependencies. Demonstrates proper DI with Reagent."
+     :deps [deadlines/plugin calendar/plugin]
+     
+     :beans
+     {;; === App Component ===
+     ;; Factory creates the Reagent component with all dependencies closed over
+     ::app-component
+     ^{:doc "Reagent app component with all dependencies injected."}
+     [make-app-component
+      :todo.plugins.persistence/load-fn
+      :todo.plugins.persistence/store-fn
+      :todo.plugins.domain/get-all-tasks
+      :todo.plugins.domain/get-active-tasks
+      :todo.plugins.domain/get-completed-tasks
+      :todo.plugins.domain/get-overdue-tasks
+      :todo.plugins.domain/sort-by-urgency
+      :todo.plugins.domain/add-task
+      :todo.plugins.domain/toggle-task
+      :todo.plugins.domain/delete-task
+      :todo.plugins.domain/clear-completed
+      :todo.plugins.domain/set-due-date
+      :todo.plugins.domain/parse-date
+      :todo.plugins.domain/format-date
+      :todo.plugins.deadlines/due-date-status
+      :todo.plugins.calendar/calendar-data]
+     
+     ;; === Mount Function ===
+     ::mount-app
+     ^{:doc "Function to mount the Reagent app to the DOM."}
+     [make-mount-app ::app-component]
+     
+     ;; === Boot Function ===
+     :plin.boot/boot-fn
+     ^{:doc "Boot function that mounts the Reagent UI."}
+     [partial boot-fn ::mount-app]}}))
+
   </script>
 
   <!-- Main Application -->
   <script type='application/x-scittle'>
-(ns todo-browser.main)
+(ns todo-browser.main
+  "Main entry point for the browser Todo app.
+   
+   This example demonstrates Plin's plugin architecture with FULL DEPENDENCY INJECTION:
+   
+   1. DOMAIN PLUGIN (:todo/domain)
+      - Wraps pure domain functions as injectable beans
+      - No dependencies - the foundation layer
+   
+   2. INTERFACE PLUGINS (:todo/persistence)
+      - Define contracts/APIs as beans
+      - Depend on :todo/domain for business logic
+      - Provide trivial default implementations
+   
+   3. REUSABLE PLUGINS (local-storage)
+      - Cross-platform plugins that can be used by browser apps
+      - Override interface beans with localStorage implementation
+   
+   4. PLATFORM PLUGINS (browser-boot)
+      - Platform-specific implementations (Reagent UI)
+      - Declare explicit dependencies on the interfaces they use
+      - All functionality comes through injected beans
+   
+   Key architectural points:
+   - NO plugin directly requires another plugin's namespace for function calls
+   - ALL dependencies are declared in :deps and injected via beans
+   - Reagent component receives dependencies via factory closure pattern
+   - The dependency graph is explicit and visible
+   
+   Usage (Scittle - no build):
+     cd examples/browser-reagent
+     bb generate.bb
+     open index.html
+   
+   Usage (shadow-cljs - with build):
+     cd examples/browser-reagent
+     npx shadow-cljs watch app"
+  (:require [plin.boot :as boot]
+            [todo.plugins.domain :as domain]
+            [todo.plugins.persistence :as persistence]
+            [todo.plugins.deadlines :as deadlines]
+            [todo.plugins.calendar :as calendar]
+            [todo-browser.plugins.local-storage :as local-storage]
+            [todo-browser.plugins.browser-boot :as browser-boot]))
 
-(defn init []
+(defn ^:dev/after-load init
+  "Initializes the Todo application.
+   Called on page load and after hot reload.
+   
+   Plugin dependency graph:
+   
+     domain (no deps)
+        |
+        +---> persistence ---> local-storage (overrides persistence beans)
+        |
+        +---> browser-boot (uses domain and persistence beans)"
+  []
   (println "Initializing Todo Browser App...")
   
-  (let [plugins [todo.plugins.persistence/plugin
-                 todo.plugins.deadlines/plugin
-                 todo.plugins.calendar/plugin
-                 todo-browser.plugins.local-storage/plugin
-                 todo-browser.plugins.browser-boot/plugin]]
+   (let [plugins [;; === Layer 1: Core Domain ===
+                  ;; Pure business logic, no dependencies
+                  todo.plugins.domain/plugin
+
+                  ;; === Layer 2: Interfaces & Utilities ===
+                  ;; Define contracts, depend on domain
+                  todo.plugins.persistence/plugin
+                  todo.plugins.deadlines/plugin
+                  todo.plugins.calendar/plugin
+
+                  ;; === Layer 3: Storage Implementation ===
+                  ;; Override persistence with localStorage
+                  todo-browser.plugins.local-storage/plugin
+
+                  ;; === Layer 4: Platform UI ===
+                  ;; Reagent-based browser UI
+                  todo-browser.plugins.browser-boot/plugin]]
     
+    ;; Bootstrap the system
     (plin.boot/bootstrap! plugins))
   
   (println "Todo Browser App initialized!"))
 
+;; Auto-initialize when script loads
 (init)
+
   </script>
+
 </body>
 </html>

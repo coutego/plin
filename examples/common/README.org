@@ -79,8 +79,8 @@ Each example overrides the interface with platform-specific implementations:
 | Browser | ~todo-browser.plugins.local-storage~ | Browser LocalStorage |
 | JVM TUI | ~todo-jvm-tui.plugins.memory-store~ | In-memory atom |
 | JVM Server | ~todo-jvm-server.plugins.memory-store~ | In-memory atom |
-| Node.js TUI | ~todo-node-tui.plugins.memory-store~ | In-memory atom |
-| Node.js Server | ~todo-node-server.plugins.memory-store~ | In-memory atom |
+| Node.js TUI | ~todo-node-tui.plugins.disk-store~ | EDN file storage |
+| Node.js Server | ~todo-node-server.plugins.disk-store~ | EDN file storage |
 
 ** Step 3: Use the Interface (Application Code)
 

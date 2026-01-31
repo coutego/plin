@@ -116,12 +116,13 @@
   (str/escape (str s) {\< "&lt;" \> "&gt;" \& "&amp;" \" "&quot;"}))
 
 (defn parse-body
-  "Parses URL-encoded form body."
+  "Parses URL-encoded form body.
+   Note: Form data uses + for spaces, which decodeURIComponent doesn't handle."
   [body]
   (into {}
         (map (fn [pair]
                (let [[k v] (str/split pair "=")]
-                 [(keyword k) (js/decodeURIComponent (or v ""))]))
+                 [(keyword k) (js/decodeURIComponent (str/replace (or v "") #"\+" " "))]))
              (str/split body "&"))))
 
 ;; =============================================================================
