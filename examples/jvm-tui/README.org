@@ -1,0 +1,135 @@
+#+TITLE: Todo JVM TUI Example (Lanterna)
+#+AUTHOR: Plin Examples
+
+* Overview
+
+This example demonstrates a Todo application running in the terminal using:
+- **Plin** for plugin architecture
+- **Lanterna** for Terminal User Interface (TUI)
+- **In-memory storage** (atoms) for persistence
+- **Keyboard navigation** for interaction
+
+It uses the shared [[file:../common][common module]] for domain logic and the persistence interface.
+
+* Architecture
+
+** Plugins
+
+| Plugin | Purpose | Source |
+|--------|---------|--------|
+| ~todo.plugins.persistence~ | Defines persistence interface | [[file:../common/src/todo/plugins/persistence.cljc][Common module]] |
+| ~todo-jvm-tui.plugins.memory-store~ | In-memory atom storage | [[file:src/todo_jvm_tui/plugins/memory_store.clj][plugins/memory_store.clj]] |
+| ~todo-jvm-tui.plugins.lanterna-ui~ | Lanterna TUI implementation | [[file:src/todo_jvm_tui/plugins/lanterna_ui.clj][plugins/lanterna_ui.clj]] |
+
+** Domain
+
+All domain logic (entities and operations) comes from the ~todo.domain~ namespace in the [[file:../common][common module]].
+
+** Shared Persistence Interface
+
+Like all examples, this uses the shared persistence interface from the common module. This plugin overrides ~::load-fn~ and ~::store-fn~ with in-memory atom implementations. See the [[file:../common/src/todo/plugins/persistence.cljc][persistence plugin]] for details.
+
+* Running
+
+** Prerequisites
+
+- Clojure CLI tools
+- JVM 11+
+- Terminal with Unicode support
+
+** Using the Example Runner (Recommended)
+
+From the project root:
+
+#+BEGIN_SRC shell
+./bin/run-example
+# Choose option 2: JVM Terminal UI
+#+END_SRC
+
+** Manual Start
+
+#+begin_src shell
+cd examples/jvm-tui
+clojure -M:run
+#+end_src
+
+* Controls
+
+| Key | Action |
+|-----|--------|
+| ~↑~ / ~↓~ | Navigate up/down through tasks |
+| ~n~ | Add new task (enter text, then Enter) |
+| ~t~ | Toggle selected task completion |
+| ~d~ | Delete selected task |
+| ~c~ | Clear all completed tasks |
+| ~a~ | Show all tasks |
+| ~A~ | Show only active (incomplete) tasks |
+| ~C~ | Show only completed tasks |
+| ~q~ or ~ESC~ | Quit |
+
+* Features
+
+- Interactive task list with visual selection
+- Add tasks inline
+- Toggle completion with visual feedback [X] / [ ]
+- Delete tasks
+- Filter by status
+- Clear completed tasks
+- Keyboard-only navigation (no mouse needed)
+
+* Implementation Notes
+
+** Lanterna Library
+
+Uses Lanterna 3.x for cross-platform terminal support:
+- Works on Linux, macOS, and Windows
+- Handles terminal capabilities automatically
+- Supports colors and text styling
+- Provides both low-level and high-level APIs
+
+** Terminal Modes
+
+The TUI uses private mode (alternate screen buffer):
+- Original terminal content is preserved
+- TUI takes over the entire screen
+- On exit, terminal returns to normal mode
+
+** Input Handling
+
+Non-blocking input with immediate response:
+- Single keystroke commands (no Enter needed)
+- Special keys (arrows) handled via KeyType enum
+- Text input mode for new tasks
+
+** Persistence
+
+Uses a simple Clojure atom to store the ~TaskList~. On application exit, all data is lost. This demonstrates the persistence extension point - a real implementation could use:
+- File-based storage (EDN, JSON)
+- Database (SQLite, etc.)
+
+* Comparison with Other Examples
+
+| Aspect | JVM TUI | Browser | JVM Server |
+|--------|---------|---------|------------|
+| Platform | Terminal | Browser | JVM |
+| UI Type | Text/TUI | GUI/HTML | HTTP/HTML |
+| Interaction | Keyboard | Mouse + KB | HTTP |
+| Persistence | Memory | LocalStorage | Memory |
+
+* Troubleshooting
+
+** Terminal not working
+
+Make sure your terminal supports:
+- Unicode characters
+- ANSI escape codes
+- Alternate screen buffer
+
+Try different terminals if issues persist (iTerm2, GNOME Terminal, Windows Terminal).
+
+** Display issues
+
+Lanterna auto-detects terminal capabilities. If display looks wrong:
+- Resize terminal window
+- Try a different terminal emulator
+- Check TERM environment variable

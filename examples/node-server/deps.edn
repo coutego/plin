@@ -1,0 +1,9 @@
+{:paths ["src"]
+ :deps {}
+ :aliases
+ {:nbb {:replace-paths ["src"
+                        "../common/src"
+                        "../../src"
+                        "../../injectable/src"
+                        "../../pluggable/src"]
+        :replace-deps {}}}}

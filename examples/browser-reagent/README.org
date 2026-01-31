@@ -1,0 +1,194 @@
+#+TITLE: Todo Browser Example (Scittle + Reagent)
+#+AUTHOR: Plin Examples
+
+* Overview
+
+This example demonstrates a Todo application running in the browser using:
+- **Plin** for plugin architecture
+- **Scittle** for ClojureScript in the browser (no build step!)
+- **Reagent** (React wrapper) for UI components
+- **LocalStorage** for persistence
+- **Scittle nREPL** for interactive development
+
+It uses the shared [[file:../common][common module]] for domain logic and the persistence interface.
+
+* Architecture
+
+** Single HTML File
+
+This example is unique: it's a single HTML file that contains all the source code!
+The ~bin/generate-browser-html.clj~ script reads the source files and inlines them into ~index.html~.
+
+** Plugins
+
+| Plugin | Purpose | Source |
+|--------|---------|--------|
+| ~todo.plugins.persistence~ | Defines persistence interface | [[file:../common/src/todo/plugins/persistence.cljc][Common module]] (inlined) |
+| ~todo.plugins.deadlines~ | Deadline utilities | [[file:../common/src/todo/plugins/deadlines.cljc][Common module]] (inlined) |
+| ~todo.plugins.calendar~ | Calendar view data | [[file:../common/src/todo/plugins/calendar.cljc][Common module]] (inlined) |
+| ~todo-browser.plugins.local-storage~ | LocalStorage implementation | Inlined into HTML |
+| ~todo-browser.plugins.reagent-ui~ | Reagent UI implementation | Inlined into HTML |
+
+** Shared Components
+
+- **Domain Logic**: Uses ~todo.domain~ from the [[file:../common/src/todo/domain.cljc][common module]]
+- **Persistence Interface**: Implements the ~todo.plugins.persistence~ interface with browser LocalStorage
+- This demonstrates how the same domain logic and interfaces work across completely different platforms (Browser, JVM, Node.js)
+
+** Dependencies
+
+All dependencies are loaded from CDN:
+- Scittle (ClojureScript interpreter)
+- Scittle nREPL (for REPL connection)
+- React & ReactDOM
+- Scittle Reagent (Reagent integration)
+
+* Running
+
+** Prerequisites
+
+- A web browser
+- (Optional) Babashka for regenerating HTML
+
+** Using the Example Runner (Recommended)
+
+From the project root:
+
+#+BEGIN_SRC shell
+./bin/run-example
+# Choose option 1: Browser (Reagent)
+#+END_SRC
+
+This will regenerate the HTML (if needed) and open it in your browser.
+
+** Manual Steps
+
+*** Generate the HTML
+
+If you've modified any source files, regenerate:
+
+#+begin_src shell
+cd /path/to/plin
+bb bin/generate-browser-html.clj
+#+end_src
+
+*** Open in browser
+
+Simply open the HTML file:
+
+#+begin_src shell
+open examples/browser-reagent/index.html
+#+end_src
+
+Or use a local server:
+
+#+begin_src shell
+cd examples/browser-reagent
+python3 -m http.server 8080
+# Then open http://localhost:8080
+#+end_src
+
+* Interactive Development (nREPL)
+
+** Connect with nREPL
+
+Scittle starts an nREPL server on port 1337. Connect with:
+
+*** Using CIDER (Emacs)
+
+#+begin_src elisp
+M-x cider-connect-cljs
+Host: localhost
+Port: 1337
+#+end_src
+
+*** Using Calva (VS Code)
+
+1. Command Palette: "Calva: Connect to a Running REPL Server"
+2. Select "ClojureScript nREPL"
+3. Enter host: localhost, port: 1337
+
+*** Using CLI
+
+#+begin_src shell
+lein repl :connect localhost:1337
+#+end_src
+
+** Interactive Commands
+
+Once connected, try these commands:
+
+#+begin_src clojure
+;; View current state
+@app-state
+
+;; Add a task
+(swap! app-state update :task-list todo.domain/add-task "Learn Clojure")
+
+;; Toggle a task (use actual ID from @app-state)
+(swap! app-state update :task-list todo.domain/toggle-task 1)
+
+;; Clear completed
+(swap! app-state update :task-list todo.domain/clear-completed)
+#+end_src
+
+* Features
+
+- Add tasks via text input with optional due date
+- Click checkbox to toggle completion
+- Click Delete button to remove task
+- Filter by All/Active/Completed/Overdue
+- Calendar view showing tasks grouped by date
+- Visual indicators for overdue and due-today tasks
+- Clear all completed tasks
+- Data persists in browser LocalStorage
+- Real-time stats (active/completed/overdue count)
+
+* Implementation Notes
+
+** Persistence
+
+Uses browser LocalStorage to persist tasks as JSON. On page reload:
+1. Load JSON from LocalStorage
+2. Parse and convert to Task records
+3. Reconstruct the TaskList
+
+** UI
+
+Uses Reagent (React wrapper) for reactive UI:
+- ~app-state~ atom triggers re-renders on changes
+- ~task-item~ component for individual tasks
+- ~task-list~ component displays filtered list
+- ~add-task-form~ component handles new task input
+- ~filter-links~ component for filter navigation
+
+** No Build Step
+
+Unlike other examples, this doesn't require:
+- ClojureScript compilation
+- JavaScript bundling
+- Node.js
+
+Just open the HTML file and it works!
+
+* Modifying
+
+To modify the application:
+
+1. Edit source files:
+   - Domain logic: ~examples/common/src/todo/~
+   - Application code: ~bin/generate-browser-html.clj~ (in the application code section)
+
+2. Regenerate:
+   #+begin_src shell
+   bb bin/generate-browser-html.clj
+   #+end_src
+
+3. Refresh browser
+
+* Limitations
+
+- Single-file architecture means all code is bundled together
+- No code splitting or lazy loading
+- LocalStorage has ~5MB limit
+- No server-side functionality

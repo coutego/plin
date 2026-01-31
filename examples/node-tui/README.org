@@ -1,0 +1,178 @@
+:PROPERTIES:
+:ID:       20250131T120001
+:END:
+#+TITLE: Todo Node.js TUI Example (Ink)
+#+AUTHOR: Plin Examples
+
+* Overview
+
+This example demonstrates a Todo application running in the terminal using:
+- **Plin** for plugin architecture
+- **nbb** (native ClojureScript for Node.js)
+- **Ink** (React for terminals) for the UI
+- **In-memory storage** (atoms) for persistence
+- **Keyboard navigation** for interaction
+
+* Architecture
+
+** Plugins
+
+| Plugin | Purpose | Source |
+|--------|---------|--------|
+| ~todo.plugins.persistence~ | Defines persistence interface | [[file:../common/src/todo/plugins/persistence.cljc][Common module]] |
+| ~todo.plugins.deadlines~ | Deadline utilities | [[file:../common/src/todo/plugins/deadlines.cljc][Common module]] |
+| ~todo.plugins.calendar~ | Calendar view data | [[file:../common/src/todo/plugins/calendar.cljc][Common module]] |
+| ~todo-node-tui.plugins.memory-store~ | In-memory atom storage | [[file:src/todo_node_tui/plugins/memory_store.cljs][plugins/memory_store.cljs]] |
+| ~todo-node-tui.plugins.terminal-ui~ | Ink-based TUI | [[file:src/todo_node_tui/plugins/terminal_ui.cljs][plugins/terminal_ui.cljs]] |
+
+** Domain
+
+All domain logic (entities and operations) comes from the ~todo.domain~ namespace in the [[file:../common][common]] module.
+
+** Shared Persistence Interface
+
+Like all examples, this uses the shared persistence interface from the common module. See the [[file:../common/src/todo/plugins/persistence.cljc][persistence plugin]] for details.
+
+* Running
+
+** Prerequisites
+
+- Node.js 16+
+- npm or npx
+- Interactive terminal (iTerm2, Terminal.app, etc.)
+
+** Using the Example Runner (Recommended)
+
+From the project root:
+
+#+BEGIN_SRC shell
+./bin/run-example
+# Choose option 4: Node.js Terminal UI
+#+END_SRC
+
+** Manual Setup
+
+If you prefer to run manually:
+
+#+BEGIN_SRC shell
+cd examples/node-tui
+npm install
+
+# Dependencies are automatically copied to deps/ by the run-example script
+# Or manually:
+mkdir -p deps
+cp -r ../../injectable/src/injectable deps/
+cp -r ../../pluggable/src/pluggable deps/
+cp -r ../../src/plin deps/
+cp -r ../common/src/todo deps/
+
+# Run
+npx nbb -cp "src:deps" src/todo_node_tui/main.cljs
+#+END_SRC
+
+* Controls
+
+| Key | Action |
+|-----|--------|
+| ~↑~ / ~↓~ | Navigate up/down through tasks |
+| ~n~ | Add new task (enter title, then due date) |
+| ~t~ | Toggle selected task completion |
+| ~d~ | Delete selected task |
+| ~c~ | Clear all completed tasks |
+| ~v~ | Toggle between list and calendar view |
+| ~a~ | Show all tasks |
+| ~A~ | Show only active (incomplete) tasks |
+| ~O~ | Show only overdue tasks |
+| ~C~ | Show only completed tasks |
+| ~q~ | Quit |
+
+* Features
+
+- Interactive task list with visual selection
+- Add tasks with optional due dates via inline input
+- Toggle completion with visual feedback [X] / [ ]
+- Delete tasks
+- Filter by status (All/Active/Overdue/Completed)
+- Calendar view showing tasks grouped by date
+- Color-coded status (red=overdue, yellow=due today, green=upcoming)
+- Clear completed tasks
+- Keyboard-only navigation
+- Smooth, flicker-free rendering with Ink
+
+* Implementation Notes
+
+** Ink Library
+
+Uses [[https://github.com/vadimdemedes/ink][Ink]] 4.x for terminal UI:
+- React-based components for terminal
+- Automatic re-rendering on state changes
+- Built-in hooks (~useInput~, ~useApp~)
+- Box and Text components for layout
+- No manual ANSI escape codes needed
+
+** No Build Step
+
+Uses **nbb** which interprets ClojureScript directly in Node.js:
+- No compilation required
+- Fast startup time
+- Direct access to Node.js APIs
+- Can use npm packages (like Ink)
+
+** State Management
+
+Uses a global atom with React's ~useEffect~ to watch for changes and force re-renders:
+
+#+BEGIN_SRC clojure
+;; State is stored outside React
+(defonce app-state (atom {...}))
+
+;; Component subscribes to changes
+(React/useEffect
+ (fn []
+   (let [key (gensym "watcher")]
+     (add-watch app-state key
+                (fn [_ _ _ _]
+                  (forceUpdate #(inc %))))
+     ;; Cleanup
+     (fn [] (remove-watch app-state key))))
+ #js [])
+#+END_SRC
+
+** Persistence
+
+Uses a simple ClojureScript atom to store the ~TaskList~. On application exit, all data is lost. This demonstrates the persistence extension point - a real implementation could use:
+- File-based storage (EDN, JSON)
+- SQLite database
+
+* Comparison with JVM TUI
+
+| Aspect | Node.js TUI (Ink) | JVM TUI (Lanterna) |
+|--------|-------------------|-------------------|
+| Platform | Node.js | JVM |
+| TUI Library | Ink (React) | Lanterna |
+| Rendering | React reconciliation | Direct screen manipulation |
+| Components | React components | Imperative drawing |
+| Dependencies | ink, react | lanterna |
+
+* Troubleshooting
+
+** "Terminal UI requires an interactive terminal" error
+
+This error occurs when running in a non-interactive terminal (e.g., piping output, CI/CD, etc.). The TUI requires an interactive terminal to function.
+
+** Arrow keys not working
+
+Some terminals send different escape sequences. Try:
+- Using a different terminal emulator
+- iTerm2 (macOS)
+- GNOME Terminal (Linux)
+- Windows Terminal (Windows)
+
+** Namespace not found errors
+
+Make sure you've copied all the dependencies to the ~deps/~ folder:
+
+#+BEGIN_SRC shell
+ls deps/
+# Should show: injectable, plin, pluggable, todo
+#+END_SRC

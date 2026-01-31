@@ -1,0 +1,14 @@
+{:paths ["src"]
+ :deps {}
+ :tasks
+ {:start {:doc "Start the Node.js TUI"
+         :task (do
+                 (shell "npm install")
+                 ;; Copy dependencies to local deps folder for nbb
+                 (shell "mkdir -p deps")
+                 (shell "cp -r ../../injectable/src/injectable deps/ 2>/dev/null || true")
+                 (shell "cp -r ../../pluggable/src/pluggable deps/ 2>/dev/null || true")
+                 (shell "cp -r ../../src/plin deps/ 2>/dev/null || true")
+                 (shell "cp -r ../common/src/todo deps/ 2>/dev/null || true")
+                 (let [classpath "src:deps"]
+                   (shell (str "npx nbb -cp " classpath " src/todo_node_tui/main.cljs"))))}}}

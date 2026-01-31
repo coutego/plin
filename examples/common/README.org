@@ -1,0 +1,155 @@
+:PROPERTIES:
+:ID:       20250131T120002
+:END:
+#+TITLE: Common Module - Shared Domain and Persistence
+#+AUTHOR: Plin Examples
+
+* Overview
+
+This module contains **shared code** used by all 5 Todo application examples. It demonstrates one of Plin's core strengths: the ability to share interfaces and domain logic across completely different platforms (Browser, JVM, Node.js).
+
+* What's Shared?
+
+** 1. Domain Logic (~todo.domain~)
+
+The [[file:src/todo/domain.cljc][todo.domain]] namespace contains pure business logic:
+
+- ~Task~ and ~TaskList~ record definitions
+- Domain operations: ~add-task~, ~toggle-task~, ~delete-task~, ~clear-completed~, ~set-due-date~
+- Query functions: ~get-all-tasks~, ~get-active-tasks~, ~get-completed-tasks~, ~get-overdue-tasks~
+- Date utilities: ~today~, ~parse-date~, ~format-date~, ~days-until~
+- Deadline helpers: ~overdue?~, ~due-today?~, ~sort-by-urgency~, ~group-tasks-by-date~
+
+This code is platform-agnostic and works in both Clojure (JVM) and ClojureScript (Browser/Node.js).
+
+** 2. Persistence Interface (~todo.plugins.persistence~)
+
+The [[file:src/todo/plugins/persistence.cljc][persistence plugin]] defines the contract for data storage:
+
+#+BEGIN_SRC clojure
+(def plugin
+  (pi/plugin
+   {:id :todo/persistence
+    :beans
+    {::load-fn   [:= (fn [] {:tasks {} :next-id 1})]
+     ::store-fn  [:= (fn [_] nil)]
+     ::delete-fn [:= (fn [_] nil)]}}))
+#+END_SRC
+
+This is an **Interface Plugin** - it defines the contract but provides no-op implementations. Each example provides its own **Implementation Plugin** that overrides these beans.
+
+** 3. Deadline Plugin (~todo.plugins.deadlines~)
+
+The [[file:src/todo/plugins/deadlines.cljc][deadlines plugin]] provides utilities for due date handling:
+
+- ~::format-due-date~ - Formats dates for display
+- ~::due-date-status~ - Returns status keyword (:overdue, :due-today, :upcoming, :no-date, :completed)
+- ~::status-label~ - Human-readable labels for status
+- ~::urgency-comparator~ - For sorting tasks by urgency
+
+** 4. Calendar Plugin (~todo.plugins.calendar~)
+
+The [[file:src/todo/plugins/calendar.cljc][calendar plugin]] provides calendar view preparation:
+
+- ~::calendar-data~ - Groups tasks by date (overdue, today, upcoming, no-date)
+- ~::render-task~ - Default task renderer (can be overridden)
+- ~::render-calendar~ - Default calendar renderer (can be overridden)
+
+Platform-specific plugins can **redefine** these beans to provide HTML, TUI, or other rendering formats. This demonstrates Plin's power: common plugins define the interface and default behavior, while platform plugins customize the output.
+
+* The Interface/Implementation Pattern
+
+This is the heart of Plin's architecture:
+
+** Step 1: Define the Interface (This Module)
+
+The persistence plugin (~:todo/persistence~) declares:
+- ~::load-fn~ - Function that returns a TaskList
+- ~::store-fn~ - Function that takes a TaskList and persists it
+- ~::delete-fn~ - Function that deletes persisted data
+
+Default implementations are no-ops.
+
+** Step 2: Provide Implementations (Each Example)
+
+Each example overrides the interface with platform-specific implementations:
+
+| Example | Implementation Plugin | Technology |
+|---------|----------------------|------------|
+| Browser | ~todo-browser.plugins.local-storage~ | Browser LocalStorage |
+| JVM TUI | ~todo-jvm-tui.plugins.memory-store~ | In-memory atom |
+| JVM Server | ~todo-jvm-server.plugins.memory-store~ | In-memory atom |
+| Node.js TUI | ~todo-node-tui.plugins.memory-store~ | In-memory atom |
+| Node.js Server | ~todo-node-server.plugins.memory-store~ | In-memory atom |
+
+** Step 3: Use the Interface (Application Code)
+
+Application code uses the interface without knowing the implementation:
+
+#+BEGIN_SRC clojure
+;; Get the load function from the container
+(let [load-fn (get container :todo.plugins.persistence/load-fn)
+      store-fn (get container :todo.plugins.persistence/store-fn)]
+  ;; Use it - don't care HOW it works
+  (store-fn (add-task (load-fn) "New Task")))
+#+END_SRC
+
+* Benefits of This Approach
+
+1. **Platform Independence**: The same application logic works on Browser, JVM, and Node.js
+2. **Testability**: Easy to swap implementations (use in-memory for tests, real storage for production)
+3. **Flexibility**: Change storage technology without touching application code
+4. **Clear Boundaries**: Interface defines the contract, implementations fulfill it
+
+* Adding a New Example
+
+To create a new example using this shared code:
+
+1. Create a new directory under ~examples/~
+2. Create a persistence implementation plugin:
+
+#+BEGIN_SRC clojure
+(ns my-example.plugins.file-storage
+  (:require [plin.core :as pi]
+            [todo.domain :as domain]))
+
+(defn load-tasks []
+  ;; Read from file, return TaskList
+  )
+
+(defn save-tasks [task-list]
+  ;; Write TaskList to file
+  )
+
+(def plugin
+  (pi/plugin
+   {:id :my-example/file-storage
+    :deps [:todo/persistence]  ; Depend on the interface
+    :beans
+    {;; Override the interface beans
+     :todo.plugins.persistence/load-fn  [:= load-tasks]
+     :todo.plugins.persistence/store-fn [:= save-tasks]}}))
+#+END_SRC
+
+3. Use ~todo.domain~ for all domain operations
+4. Load/save using the persistence beans from the container
+
+* File Structure
+
+#+BEGIN_SRC
+common/
+├── deps.edn                    ; Clojure dependencies
+└── src/todo/
+    ├── domain.cljc             ; Shared domain logic
+    └── plugins/
+        ├── persistence.cljc    ; Persistence interface
+        ├── deadlines.cljc      ; Deadline utilities
+        └── calendar.cljc       ; Calendar view preparation
+#+END_SRC
+
+* See Also
+
+- [[file:../README.org][Root README]] - Overview of all examples
+- [[file:../browser-reagent/README.org][Browser Example]] - LocalStorage implementation
+- [[file:../jvm-tui/README.org][JVM TUI Example]] - Memory implementation
+- [[file:../node-tui/README.org][Node.js TUI Example]] - Memory implementation

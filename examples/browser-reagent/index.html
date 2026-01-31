@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <title>Todo App - Browser (Scittle)</title>
+  <script src='https://cdn.jsdelivr.net/npm/scittle@0.6.17/dist/scittle.js'></script>
+  <script src='https://cdn.jsdelivr.net/npm/scittle@0.6.17/dist/scittle.nrepl.js'></script>
+  <script src='https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js'></script>
+  <script src='https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js'></script>
+  <script src='https://cdn.jsdelivr.net/npm/scittle@0.6.17/dist/scittle.reagent.js'></script>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 700px; margin: 40px auto; padding: 0 20px; background: #f5f5f5; }
+    h1 { color: #333; text-align: center; }
+    h2 { color: #555; margin-top: 30px; }
+    h3 { color: #666; margin: 15px 0 10px 0; font-size: 16px; }
+    h4 { color: #888; margin: 10px 0 5px 0; font-size: 14px; }
+    .app-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .nav { text-align: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
+    .nav a { color: #4CAF50; text-decoration: none; margin: 0 15px; font-weight: 500; cursor: pointer; }
+    .nav a:hover { text-decoration: underline; }
+    .nav a.active { font-weight: bold; }
+    .add-form { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    .add-form input[type='text'] { flex: 2; min-width: 200px; padding: 10px; font-size: 16px; border: 1px solid #ddd; border-radius: 4px; }
+    .add-form input[type='date'] { flex: 1; min-width: 140px; padding: 10px; font-size: 14px; border: 1px solid #ddd; border-radius: 4px; }
+    .add-form button { padding: 10px 20px; font-size: 16px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    .add-form button:hover { background: #45a049; }
+    .filters { text-align: center; margin-bottom: 20px; }
+    .filters a { color: #666; text-decoration: none; margin: 0 8px; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+    .filters a:hover { background: #f0f0f0; }
+    .filters a.active { background: #4CAF50; color: white; }
+    .task { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #eee; gap: 10px; flex-wrap: wrap; }
+    .task:last-child { border-bottom: none; }
+    .task.completed .task-title { text-decoration: line-through; opacity: 0.6; }
+    .task.overdue { background: #fff5f5; }
+    .task.due-today { background: #fffef5; }
+    .task input[type='checkbox'] { width: 20px; height: 20px; cursor: pointer; }
+    .task .task-title { flex: 1; font-size: 16px; min-width: 150px; }
+    .task .task-due { font-size: 12px; color: #888; }
+    .task .task-due.overdue { color: #d32f2f; font-weight: bold; }
+    .task .task-due.due-today { color: #f57c00; font-weight: bold; }
+    .task .due-input { padding: 4px; font-size: 12px; border: 1px solid #ddd; border-radius: 4px; }
+    .task button { background: #ff4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+    .task button:hover { background: #cc0000; }
+    .empty { text-align: center; color: #999; padding: 40px; }
+    .actions { text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; }
+    .actions button { background: #666; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin: 0 5px; }
+    .actions button:hover { background: #444; }
+    .stats { text-align: center; color: #666; margin-top: 10px; font-size: 14px; }
+    .stats .overdue { color: #d32f2f; font-weight: bold; }
+    /* Calendar styles */
+    .calendar-view { margin-top: 20px; }
+    .calendar-stats { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; margin-bottom: 20px; padding: 15px; background: #f9f9f9; border-radius: 8px; }
+    .calendar-stats .stat { font-size: 14px; }
+    .calendar-stats .stat.overdue strong { color: #d32f2f; }
+    .calendar-stats .stat.due-today strong { color: #f57c00; }
+    .calendar-section { margin-bottom: 25px; }
+    .calendar-section.overdue { border-left: 4px solid #d32f2f; padding-left: 15px; }
+    .calendar-section.due-today { border-left: 4px solid #f57c00; padding-left: 15px; }
+    .calendar-section.upcoming { border-left: 4px solid #4CAF50; padding-left: 15px; }
+    .calendar-section.no-date { border-left: 4px solid #9e9e9e; padding-left: 15px; }
+    .calendar-task { padding: 8px 0; border-bottom: 1px solid #eee; display: flex; gap: 10px; align-items: center; }
+    .calendar-task .task-title { flex: 1; }
+    .calendar-task .task-status { font-size: 11px; padding: 2px 6px; border-radius: 3px; }
+    .calendar-task .task-status.overdue { background: #ffebee; color: #c62828; }
+    .calendar-task .task-status.due-today { background: #fff3e0; color: #ef6c00; }
+    .date-group { margin: 10px 0; }
+    .calendar-empty { text-align: center; color: #999; padding: 40px; }
+  </style>
+</head>
+<body>
+  <div id='app'></div>
+
+  <!-- Domain Logic with Deadlines -->
+  <script type='application/x-scittle'>
+(ns todo.domain)
+
+(defrecord Task [id title completed created-at due-date])
+
+(defrecord TaskList [tasks next-id])
+
+(defn create-task-list []
+  (->TaskList {} 1))
+
+(defn add-task 
+  ([task-list title]
+   (add-task task-list title nil))
+  ([task-list title due-date]
+   (let [id (:next-id task-list)
+         task (map->Task {:id id
+                          :title title
+                          :completed false
+                          :created-at (js/Date.)
+                          :due-date due-date})]
+     (-> task-list
+         (assoc-in [:tasks id] task)
+         (update :next-id inc)))))
+
+(defn toggle-task [task-list task-id]
+  (update-in task-list [:tasks task-id :completed] not))
+
+(defn delete-task [task-list task-id]
+  (update task-list :tasks dissoc task-id))
+
+(defn set-due-date [task-list task-id due-date]
+  (assoc-in task-list [:tasks task-id :due-date] due-date))
+
+(defn get-all-tasks [task-list]
+  (->> (:tasks task-list)
+       vals
+       (sort-by :created-at)))
+
+(defn get-active-tasks [task-list]
+  (->> (get-all-tasks task-list)
+       (remove :completed)))
+
+(defn get-completed-tasks [task-list]
+  (->> (get-all-tasks task-list)
+       (filter :completed)))
+
+(defn clear-completed [task-list]
+  (update task-list :tasks #(into {} (remove (fn [[_ task]] (:completed task))) %)))
+
+;; Date utilities
+(defn today []
+  (let [d (js/Date.)]
+    (js/Date. (.getFullYear d) (.getMonth d) (.getDate d))))
+
+(defn parse-date [date-str]
+  (when (and date-str (not= date-str ""))
+    (let [d (js/Date. date-str)]
+      (when-not (js/isNaN (.getTime d))
+        d))))
+
+(defn format-date [date]
+  (if date
+    (let [y (.getFullYear date)
+          m (inc (.getMonth date))
+          d (.getDate date)]
+      (str y "-" (when (< m 10) "0") m "-" (when (< d 10) "0") d))
+    ""))
+
+(defn days-until [date]
+  (when date
+    (let [today-ms (.getTime (today))
+          date-ms (.getTime date)
+          diff-ms (- date-ms today-ms)]
+      (js/Math.floor (/ diff-ms 86400000)))))
+
+(defn overdue? [task]
+  (and (:due-date task)
+       (not (:completed task))
+       (let [days (days-until (:due-date task))]
+         (and days (neg? days)))))
+
+(defn due-today? [task]
+  (and (:due-date task)
+       (let [days (days-until (:due-date task))]
+         (and days (zero? days)))))
+
+(defn get-overdue-tasks [task-list]
+  (->> (get-active-tasks task-list)
+       (filter overdue?)))
+
+(defn sort-by-urgency [tasks]
+  (let [with-due (filter :due-date tasks)
+        without-due (remove :due-date tasks)]
+    (concat (sort-by #(days-until (:due-date %)) with-due)
+            without-due)))
+
+(defn due-date-status [task]
+  (cond
+    (:completed task) :completed
+    (overdue? task) :overdue
+    (due-today? task) :due-today
+    (:due-date task) :upcoming
+    :else :no-date))
+  </script>
+
+  <!-- Simplified Plin Core for Scittle -->
+  <script type='application/x-scittle'>
+(ns plin.core)
+
+(defn load-plugins
+  [plugins]
+  (let [beans {}
+        merged-beans (reduce (fn [acc plugin]
+                               (if-let [plugin-beans (:beans plugin)]
+                                 (merge acc plugin-beans)
+                                 acc))
+                             beans
+                             plugins)
+        resolved-beans (into {} (map (fn [[k v]]
+                                      (if (and (vector? v) (= := (first v)))
+                                        [k (second v)]
+                                        [k v]))
+                                    merged-beans))]
+    resolved-beans))
+  </script>
+
+  <!-- Plin Boot -->
+  <script type='application/x-scittle'>
+(ns plin.boot)
+
+(defonce state
+  (atom {:container nil}))
+
+(def plugin
+  {:id :plin.boot/plugin
+   :beans
+   {::boot-fn
+    [:= (fn [_container]
+          (println "Boot complete"))]}})
+
+(defn reload! []
+  (let [{:keys [all-plugins]} @state
+        container (plin.core/load-plugins all-plugins)
+        boot-fn (::boot-fn container)]
+    (swap! state assoc :container container)
+    (when boot-fn
+      (boot-fn container))
+    @state))
+
+(defn bootstrap! [plugins]
+  (let [full-list (vec (cons plugin plugins))]
+    (swap! state assoc :all-plugins full-list)
+    (reload!)))
+  </script>
+
+  <!-- Persistence Interface Plugin -->
+  <script type='application/x-scittle'>
+(ns todo.plugins.persistence)
+
+(defonce memory-store (atom nil))
+
+(defn- trivial-store-fn [task-list]
+  (reset! memory-store task-list))
+
+(defn- trivial-load-fn []
+  (or @memory-store (todo.domain/create-task-list)))
+
+(defn- trivial-delete-fn []
+  (reset! memory-store nil))
+
+(def plugin
+  {:id :todo/persistence
+   :deps []
+   :beans
+   {::store-fn [:= trivial-store-fn]
+    ::load-fn [:= trivial-load-fn]
+    ::delete-fn [:= trivial-delete-fn]}})
+  </script>
+
+  <!-- Deadlines Plugin -->
+  <script type='application/x-scittle'>
+(ns todo.plugins.deadlines)
+
+(defn default-format-due-date [date]
+  (if date
+    (todo.domain/format-date date)
+    "No due date"))
+
+(defn default-due-date-status [task]
+  (todo.domain/due-date-status task))
+
+(defn default-status-label [status]
+  (case status
+    :overdue "Overdue"
+    :due-today "Due Today"
+    :upcoming "Upcoming"
+    :no-date ""
+    :completed "Done"
+    ""))
+
+(def plugin
+  {:id :todo/deadlines
+   :deps []
+   :beans
+   {::format-due-date [:= default-format-due-date]
+    ::due-date-status [:= default-due-date-status]
+    ::status-label [:= default-status-label]}})
+  </script>
+
+  <!-- Calendar Plugin -->
+  <script type='application/x-scittle'>
+(ns todo.plugins.calendar)
+
+(defn prepare-calendar-data [task-list due-date-status-fn]
+  (let [all-tasks (todo.domain/get-active-tasks task-list)
+        grouped (group-by due-date-status-fn all-tasks)
+        overdue (sort-by #(todo.domain/days-until (:due-date %)) (:overdue grouped))
+        today-tasks (:due-today grouped)
+        upcoming-tasks (:upcoming grouped)
+        no-date (:no-date grouped)
+        upcoming-by-date (->> upcoming-tasks
+                              (group-by :due-date)
+                              (sort-by (fn [[date _]] (.getTime date)))
+                              (into {}))]
+    {:today (todo.domain/today)
+     :overdue (vec overdue)
+     :today-tasks (vec today-tasks)
+     :upcoming upcoming-by-date
+     :no-date (vec no-date)
+     :stats {:total (count all-tasks)
+             :overdue (count overdue)
+             :due-today (count today-tasks)
+             :upcoming (count upcoming-tasks)
+             :no-date (count no-date)}}))
+
+(def plugin
+  {:id :todo/calendar
+   :deps []
+   :beans
+   {::calendar-data [:= prepare-calendar-data]}})
+  </script>
+
+  <!-- LocalStorage Persistence Plugin -->
+  <script type='application/x-scittle'>
+(ns todo-browser.plugins.local-storage)
+
+(defn- load-tasks []
+  (if-let [stored (.getItem js/localStorage "todo-tasks")]
+    (let [parsed (js/JSON.parse stored)
+          tasks (into {} (map (fn [[k v]] 
+                                (let [task-data (js->clj v :keywordize-keys true)
+                                      ;; Parse due-date if present
+                                      due-date (when-let [d (:due-date task-data)]
+                                                 (todo.domain/parse-date d))]
+                                  [(js/parseInt k) 
+                                   (todo.domain/map->Task (assoc task-data :due-date due-date))])) 
+                              (js->clj parsed)))]
+      (if (seq tasks)
+        (assoc (todo.domain/create-task-list) 
+               :tasks tasks 
+               :next-id (inc (apply max (keys tasks))))
+        (todo.domain/create-task-list)))
+    (todo.domain/create-task-list)))
+
+(defn- save-tasks [task-list]
+  ;; Convert dates to strings for JSON serialization
+  (let [tasks-with-string-dates 
+        (into {} (map (fn [[k task]]
+                        [k (update task :due-date #(when % (todo.domain/format-date %)))])
+                      (:tasks task-list)))
+        tasks (clj->js tasks-with-string-dates)]
+    (.setItem js/localStorage "todo-tasks" (js/JSON.stringify tasks))))
+
+(defn- delete-tasks []
+  (.removeItem js/localStorage "todo-tasks"))
+
+(def plugin
+  {:id :todo-browser/local-storage
+   :deps [:todo/persistence]
+   :beans
+   {::store-fn [:= save-tasks]
+    ::load-fn [:= load-tasks]
+    ::delete-fn [:= delete-tasks]}})
+  </script>
+
+  <!-- Browser Boot Plugin with Calendar UI -->
+  <script type='application/x-scittle'>
+(ns todo-browser.plugins.browser-boot)
+
+(defn- create-app-state [container]
+  (let [load-fn (get container :todo.plugins.persistence/load-fn)]
+    (reagent.core/atom {:view :list  ;; :list or :calendar
+                        :filter :all
+                        :task-list (load-fn)})))
+
+(defn- save-tasks! [container task-list]
+  (let [store-fn (get container :todo.plugins.persistence/store-fn)]
+    (store-fn task-list)))
+
+;; Task Item Component
+(defn- task-item [app-state container task]
+  (let [status (todo.domain/due-date-status task)
+        status-class (name status)
+        due-date-str (when (:due-date task) (todo.domain/format-date (:due-date task)))]
+    [:div.task {:class status-class}
+     [:input {:type "checkbox"
+              :checked (:completed task)
+              :on-change #(let [new-state (swap! app-state 
+                                                  update :task-list 
+                                                  todo.domain/toggle-task (:id task))]
+                            (save-tasks! container (:task-list new-state)))}]
+     [:span.task-title (:title task)]
+     (when due-date-str
+       [:span.task-due {:class status-class} due-date-str])
+     [:input.due-input {:type "date"
+                        :value (or due-date-str "")
+                        :on-change #(let [new-date (todo.domain/parse-date (.. % -target -value))
+                                          new-state (swap! app-state 
+                                                           update :task-list 
+                                                           todo.domain/set-due-date (:id task) new-date)]
+                                      (save-tasks! container (:task-list new-state)))}]
+     [:button {:on-click #(let [new-state (swap! app-state 
+                                                  update :task-list 
+                                                  todo.domain/delete-task (:id task))]
+                            (save-tasks! container (:task-list new-state)))} 
+      "Delete"]]))
+
+;; Task List View
+(defn- task-list-view [app-state container]
+  (let [{:keys [filter task-list]} @app-state
+        tasks (case filter
+                :active (todo.domain/get-active-tasks task-list)
+                :completed (todo.domain/get-completed-tasks task-list)
+                :overdue (todo.domain/get-overdue-tasks task-list)
+                (todo.domain/get-all-tasks task-list))
+        sorted-tasks (todo.domain/sort-by-urgency tasks)]
+    [:div.tasks
+     (if (empty? sorted-tasks)
+       [:div.empty "No tasks to display"]
+       (for [task sorted-tasks]
+         ^{:key (:id task)} [task-item app-state container task]))]))
+
+;; Add Task Form
+(defn- add-task-form [app-state container]
+  (let [new-task (reagent.core/atom "")
+        new-due-date (reagent.core/atom "")]
+    (fn []
+      [:form.add-form {:on-submit (fn [e]
+                                    (.preventDefault e)
+                                    (when (seq @new-task)
+                                      (let [due-date (todo.domain/parse-date @new-due-date)
+                                            new-state (swap! app-state 
+                                                             update :task-list 
+                                                             todo.domain/add-task @new-task due-date)]
+                                        (save-tasks! container (:task-list new-state)))
+                                      (reset! new-task "")
+                                      (reset! new-due-date "")))}
+       [:input {:type "text"
+                :placeholder "What needs to be done?"
+                :value @new-task
+                :on-change #(reset! new-task (.. % -target -value))}]
+       [:input {:type "date"
+                :value @new-due-date
+                :on-change #(reset! new-due-date (.. % -target -value))}]
+       [:button {:type "submit"} "Add Task"]])))
+
+;; Filter Links
+(defn- filter-links [app-state]
+  (let [current-filter (:filter @app-state)]
+    [:div.filters
+     [:a {:class (when (= current-filter :all) "active")
+          :on-click #(swap! app-state assoc :filter :all)} "All"]
+     [:a {:class (when (= current-filter :active) "active")
+          :on-click #(swap! app-state assoc :filter :active)} "Active"]
+     [:a {:class (when (= current-filter :overdue) "active")
+          :on-click #(swap! app-state assoc :filter :overdue)} "Overdue"]
+     [:a {:class (when (= current-filter :completed) "active")
+          :on-click #(swap! app-state assoc :filter :completed)} "Completed"]]))
+
+;; Navigation
+(defn- nav-links [app-state]
+  (let [current-view (:view @app-state)]
+    [:nav.nav
+     [:a {:class (when (= current-view :list) "active")
+          :on-click #(swap! app-state assoc :view :list)} "Task List"]
+     [:a {:class (when (= current-view :calendar) "active")
+          :on-click #(swap! app-state assoc :view :calendar)} "Calendar View"]]))
+
+;; Calendar Section Component
+(defn- calendar-section [title section-class tasks]
+  (when (seq tasks)
+    [:div.calendar-section {:class section-class}
+     [:h3 title]
+     (for [task tasks]
+       ^{:key (:id task)}
+       [:div.calendar-task
+        [:span.task-title (:title task)]
+        (when (:due-date task)
+          [:span.task-due (todo.domain/format-date (:due-date task))])])]))
+
+;; Calendar View
+(defn- calendar-view [app-state container]
+  (let [task-list (:task-list @app-state)
+        cal-data (todo.plugins.calendar/prepare-calendar-data 
+                  task-list 
+                  todo.domain/due-date-status)
+        {:keys [overdue today-tasks upcoming no-date stats]} cal-data]
+    [:div.calendar-view
+     [:div.calendar-stats
+      [:span.stat "Total: " [:strong (:total stats)]]
+      [:span.stat.overdue "Overdue: " [:strong (:overdue stats)]]
+      [:span.stat.due-today "Due today: " [:strong (:due-today stats)]]
+      [:span.stat "Upcoming: " [:strong (:upcoming stats)]]
+      [:span.stat "No date: " [:strong (:no-date stats)]]]
+     
+     [calendar-section "Overdue" "overdue" overdue]
+     [calendar-section "Due Today" "due-today" today-tasks]
+     
+     (when (seq upcoming)
+       [:div.calendar-section.upcoming
+        [:h3 "Upcoming"]
+        (for [[date tasks] upcoming]
+          ^{:key (str date)}
+          [:div.date-group
+           [:h4 (todo.domain/format-date date)]
+           (for [task tasks]
+             ^{:key (:id task)}
+             [:div.calendar-task
+              [:span.task-title (:title task)]])])])
+     
+     [calendar-section "No Due Date" "no-date" no-date]
+     
+     (when (zero? (:total stats))
+       [:div.calendar-empty "No active tasks"])]))
+
+;; Main App Component
+(defn- app-component [app-state container]
+  (let [task-list (:task-list @app-state)
+        active-count (count (todo.domain/get-active-tasks task-list))
+        completed-count (count (todo.domain/get-completed-tasks task-list))
+        overdue-count (count (todo.domain/get-overdue-tasks task-list))
+        current-view (:view @app-state)]
+    [:div.app-container
+     [:h1 "Todo List"]
+     [nav-links app-state]
+     
+     (if (= current-view :calendar)
+       [calendar-view app-state container]
+       [:<>
+        [add-task-form app-state container]
+        [filter-links app-state]
+        [task-list-view app-state container]
+        [:div.actions
+         [:button {:on-click #(let [new-state (swap! app-state 
+                                                      (fn [s]
+                                                        (-> s
+                                                            (update :task-list todo.domain/clear-completed)
+                                                            (assoc :filter :all))))]
+                                (save-tasks! container (:task-list new-state)))} 
+          "Clear Completed"]]])
+     
+     [:div.stats 
+      (str active-count " active, " completed-count " completed")
+      (when (pos? overdue-count)
+        [:span.overdue (str ", " overdue-count " overdue")])]]))
+
+(defn- mount-app [container]
+  (let [app-state (create-app-state container)]
+    (reagent.dom/render [app-component app-state container] 
+                 (.getElementById js/document "app"))))
+
+(defn- boot-fn [container]
+  (println "Booting browser Todo app...")
+  (mount-app container)
+  (println "Todo app mounted successfully!"))
+
+(def plugin
+  {:id :todo-browser/boot
+   :deps [:plin.boot/plugin]
+   :beans
+   {:plin.boot/boot-fn [:= boot-fn]}})
+  </script>
+
+  <!-- Main Application -->
+  <script type='application/x-scittle'>
+(ns todo-browser.main)
+
+(defn init []
+  (println "Initializing Todo Browser App...")
+  
+  (let [plugins [todo.plugins.persistence/plugin
+                 todo.plugins.deadlines/plugin
+                 todo.plugins.calendar/plugin
+                 todo-browser.plugins.local-storage/plugin
+                 todo-browser.plugins.browser-boot/plugin]]
+    
+    (plin.boot/bootstrap! plugins))
+  
+  (println "Todo Browser App initialized!"))
+
+(init)
+  </script>
+</body>
+</html>

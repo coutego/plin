@@ -1,0 +1,102 @@
+#+TITLE: Todo JVM Server Example (Ring/Jetty)
+#+AUTHOR: Plin Examples
+
+* Overview
+
+This example demonstrates a Todo application running on the JVM using:
+- **Plin** for plugin architecture
+- **Ring** and **Jetty** for HTTP server
+- **In-memory storage** (atoms) for persistence
+- **Server-rendered HTML** for UI
+
+It uses the shared [[file:../common][common module]] for domain logic and the persistence interface.
+
+* Architecture
+
+** Plugins
+
+This example consists of the following plugins:
+
+| Plugin | Purpose | Source |
+|--------|---------|--------|
+| ~todo.plugins.persistence~ | Defines persistence interface | [[file:../common/src/todo/plugins/persistence.cljc][Common module]] |
+| ~todo.plugins.deadlines~ | Deadline utilities | [[file:../common/src/todo/plugins/deadlines.cljc][Common module]] |
+| ~todo.plugins.calendar~ | Calendar view data | [[file:../common/src/todo/plugins/calendar.cljc][Common module]] |
+| ~todo-jvm-server.plugins.memory-store~ | In-memory atom storage | [[file:src/todo_jvm_server/plugins/memory_store.clj][plugins/memory_store.clj]] |
+| ~todo-jvm-server.plugins.http-server~ | Ring/Jetty HTTP server | [[file:src/todo_jvm_server/plugins/http_server.clj][plugins/http_server.clj]] |
+| ~todo-jvm-server.plugins.calendar-html~ | HTML calendar renderer | [[file:src/todo_jvm_server/plugins/calendar_html.clj][plugins/calendar_html.clj]] |
+
+The ~calendar-html~ plugin demonstrates **bean redefinition**: it overrides the calendar rendering beans from the common ~todo.plugins.calendar~ to produce HTML output instead of plain text.
+
+** Domain
+
+All domain logic (entities and operations) comes from the ~todo.domain~ namespace in the [[file:../common][common module]].
+
+** Shared Persistence Interface
+
+Like all examples, this uses the shared persistence interface from the common module. This plugin overrides ~::load-fn~ and ~::store-fn~ with in-memory atom implementations. See the [[file:../common/src/todo/plugins/persistence.cljc][persistence plugin]] for details.
+
+* Running
+
+** Prerequisites
+
+- Clojure CLI tools
+- JVM 11+
+
+** Using the Example Runner (Recommended)
+
+From the project root:
+
+#+BEGIN_SRC shell
+./bin/run-example
+# Choose option 3: JVM HTTP Server
+#+END_SRC
+
+** Manual Start
+
+#+begin_src shell
+cd examples/jvm-server
+clojure -M:run
+#+end_src
+
+** Access the application
+
+Open your browser to: http://localhost:3000
+
+* API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | ~/~ | Main page with task list |
+| GET | ~/calendar~ | Calendar view grouped by date |
+| POST | ~/tasks~ | Create new task (form: ~title~, ~due-date~) |
+| POST | ~/tasks/:id/toggle~ | Toggle task completion |
+| POST | ~/tasks/:id/delete~ | Delete a task |
+| POST | ~/tasks/clear-completed~ | Clear all completed tasks |
+
+* Features
+
+- Add tasks via form with optional due date
+- Click checkbox to toggle completion
+- Click Delete button to remove task
+- Filter by All/Active/Completed/Overdue
+- Calendar view showing tasks grouped by date
+- Visual indicators for overdue and due-today tasks
+- Clear all completed tasks
+- Data persists in memory until server restart
+
+* Implementation Notes
+
+** Persistence
+
+Uses a simple Clojure atom to store the ~TaskList~. On server restart, all data is lost. This demonstrates the persistence extension point - a real implementation could use:
+- File-based storage (EDN, JSON)
+- Database (SQLite, PostgreSQL)
+- External cache (Redis)
+
+** UI
+
+The UI is server-rendered HTML (no JavaScript required). Each interaction triggers a full page reload. This is a simple demonstration - a more sophisticated approach could use:
+- HTMX for partial updates
+- Reagent/React for SPA
+- JSON API with separate frontend

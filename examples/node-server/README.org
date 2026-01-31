@@ -1,0 +1,161 @@
+#+TITLE: Todo Node.js Server Example (nbb)
+#+AUTHOR: Plin Examples
+
+* Overview
+
+This example demonstrates a Todo application running on Node.js using:
+- **Plin** for plugin architecture
+- **nbb** (native ClojureScript for Node.js) - no compilation!
+- **Node.js built-in http module** for HTTP server
+- **In-memory storage** (atoms) for persistence
+- **Server-rendered HTML** for UI
+
+It uses the shared [[file:../common][common module]] for domain logic and the persistence interface.
+
+* Architecture
+
+** Plugins
+
+| Plugin | Purpose | Source |
+|--------|---------|--------|
+| ~todo.plugins.persistence~ | Defines persistence interface | [[file:../common/src/todo/plugins/persistence.cljc][Common module]] |
+| ~todo.plugins.deadlines~ | Deadline utilities | [[file:../common/src/todo/plugins/deadlines.cljc][Common module]] |
+| ~todo.plugins.calendar~ | Calendar view data | [[file:../common/src/todo/plugins/calendar.cljc][Common module]] |
+| ~todo-node-server.plugins.memory-store~ | In-memory atom storage | [[file:src/todo_node_server/plugins/memory_store.cljs][plugins/memory_store.cljs]] |
+| ~todo-node-server.plugins.http-server~ | Node.js HTTP server | [[file:src/todo_node_server/plugins/http_server.cljs][plugins/http_server.cljs]] |
+| ~todo-node-server.plugins.calendar-html~ | HTML calendar renderer | [[file:src/todo_node_server/plugins/calendar_html.cljs][plugins/calendar_html.cljs]] |
+
+The ~calendar-html~ plugin demonstrates **bean redefinition**: it overrides the calendar rendering beans from the common ~todo.plugins.calendar~ to produce HTML output instead of plain text.
+
+** Domain
+
+All domain logic (entities and operations) comes from the ~todo.domain~ namespace in the [[file:../common][common module]].
+
+** Shared Persistence Interface
+
+Like all examples, this uses the shared persistence interface from the common module. This plugin overrides ~::load-fn~ and ~::store-fn~ with in-memory atom implementations. See the [[file:../common/src/todo/plugins/persistence.cljc][persistence plugin]] for details.
+
+* Running
+
+** Prerequisites
+
+- Node.js 16+
+- npm or npx
+
+** Using the Example Runner (Recommended)
+
+From the project root:
+
+#+BEGIN_SRC shell
+./bin/run-example
+# Choose option 5: Node.js HTTP Server
+#+END_SRC
+
+The script will automatically install dependencies and copy the required source files.
+
+** Manual Setup
+
+If you prefer to run manually:
+
+#+begin_src shell
+cd examples/node-server
+npm install
+
+# Copy dependencies to local deps folder
+mkdir -p deps
+cp -r ../../injectable/src/injectable deps/
+cp -r ../../pluggable/src/pluggable deps/
+cp -r ../../src/plin deps/
+cp -r ../common/src/todo deps/
+#+end_src
+
+** Start the server
+
+#+begin_src shell
+npx nbb -cp "src:deps" src/todo_node_server/main.cljs
+#+end_src
+
+** Access the application
+
+Open your browser to: http://localhost:3000
+
+* API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | ~/~ | Main page with task list |
+| GET | ~/calendar~ | Calendar view grouped by date |
+| POST | ~/tasks~ | Create new task (form: ~title~, ~due-date~) |
+| POST | ~/tasks/:id/toggle~ | Toggle task completion |
+| POST | ~/tasks/:id/delete~ | Delete a task |
+| POST | ~/tasks/clear-completed~ | Clear all completed tasks |
+
+* Features
+
+- Add tasks via form with optional due date
+- Click checkbox to toggle completion
+- Click Delete button to remove task
+- Filter by All/Active/Completed/Overdue
+- Calendar view showing tasks grouped by date
+- Visual indicators for overdue and due-today tasks
+- Clear all completed tasks
+- Data persists in memory until server restart
+
+* Implementation Notes
+
+** No Build Step
+
+Unlike traditional ClojureScript projects, this example uses **nbb** which:
+- Interprets ClojureScript directly in Node.js
+- Requires no compilation
+- Has fast startup time
+- Supports npm dependencies
+
+** Persistence
+
+Uses a simple Clojure atom to store the ~TaskList~. On server restart, all data is lost. This demonstrates the persistence extension point.
+
+** HTTP Server
+
+Uses Node.js built-in ~http~ module directly (no Express or other frameworks). This keeps dependencies minimal while demonstrating:
+- URL parsing
+- Query string handling
+- POST body parsing
+- Request routing
+
+** Comparison with JVM Server
+
+| Aspect | JVM Server | Node.js Server |
+|--------|------------|----------------|
+| Platform | JVM | Node.js |
+| HTTP Library | Ring + Jetty | Node.js http |
+| Startup | Slower | Faster |
+| Memory | Higher | Lower |
+| Interop | Java libraries | NPM packages |
+
+* Modifying
+
+To modify the application:
+
+1. Edit source files in ~src/todo_node_server/~
+2. Restart the server (~Ctrl+C~ then run the start command)
+3. Refresh browser
+
+No compilation step needed!
+
+* Troubleshooting
+
+** Namespace not found errors
+
+Make sure you've copied all the dependencies to the ~deps/~ folder:
+
+#+begin_src shell
+ls deps/
+# Should show: injectable, plin, pluggable, todo
+#+end_src
+
+** Port already in use
+
+If port 3000 is already in use, the server will fail to start. Either:
+- Stop the other process using port 3000
+- Modify the port in ~plugins/http_server.cljs~

@@ -1,0 +1,11 @@
+{
+  "name": "todo-node-tui",
+  "version": "1.0.0",
+  "description": "Todo TUI for Node.js using nbb + Ink",
+  "dependencies": {
+    "nbb": "^1.2.174",
+    "ink": "^4.4.1",
+    "react": "^18.2.0",
+    "ink-text-input": "^5.0.1"
+  }
+}

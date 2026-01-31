@@ -1,16 +1,174 @@
-* Plin: A Data-Driven Plugin Architecture for ClojureScript
+:PROPERTIES:
+:ID:       20250131T120000
+:END:
+#+TITLE: Plin: A Data-Driven Plugin Architecture for Clojure/ClojureScript
+#+AUTHOR: Plin Team
 
-Plin is a functional, data-driven framework designed for building *Modular Monoliths* in ClojureScript. It provides a rigorous architectural boundary system that enforces loose coupling through *Inversion of Control (IoC)* and *Dependency Injection (DI)*.
+Plin is a functional, data-driven framework for building *Modular Monoliths* in Clojure and ClojureScript. It provides a rigorous architectural boundary system that enforces loose coupling through *Inversion of Control (IoC)* and *Dependency Injection (DI)*.
 
 Unlike traditional frameworks that rely on class-based inheritance or global singletons, Plin models the entire application structure—modules, dependencies, configuration, and extension points—as immutable data.
 
-** Architectural Philosophy
+* Quick Start: Try the Examples
 
-As frontend applications scale, the "Import Graph" tends to resemble a plate of spaghetti. Components import stores, stores import services, services import utilities, and circular dependencies abound. Refactoring becomes risky, and testing in isolation becomes impossible.
+The best way to understand Plin is to see it in action! This repository includes **5 complete Todo application examples** that demonstrate the plugin architecture across different platforms:
 
-Plin solves this by introducing a strict separation between *Wiring Time* and *Runtime*.
+| # | Example | Platform | Type | Key Features |
+|---|---------|----------|------|--------------|
+| 1 | [[file:examples/browser-reagent/README.org][Browser (Reagent)]] | ClojureScript | Browser | Scittle (no build), Reagent UI, LocalStorage |
+| 2 | [[file:examples/jvm-tui/README.org][JVM TUI]] | Clojure | Terminal | Lanterna TUI, keyboard navigation |
+| 3 | [[file:examples/jvm-server/README.org][JVM Server]] | Clojure | HTTP Server | Ring/Jetty, server-rendered HTML |
+| 4 | [[file:examples/node-tui/README.org][Node.js TUI]] | ClojureScript | Terminal | nbb, Ink (React for terminals) |
+| 5 | [[file:examples/node-server/README.org][Node.js Server]] | ClojureScript | HTTP Server | nbb, Node.js http module |
 
-*** The Two-Phase Boot Process
+** Run All Examples with One Command
+
+We provide an interactive script to run any example:
+
+#+BEGIN_SRC shell
+./bin/run-example
+#+END_SRC
+
+This will show a menu where you can select which example to run. The script handles all setup automatically (installing dependencies, generating HTML, etc.).
+
+** The Core Idea: Shared Persistence Plugin
+
+All 5 examples share the same domain logic and persistence interface! Here's how:
+
+*** The Interface Plugin (~todo.plugins.persistence~)
+
+Located in [[file:examples/common/src/todo/plugins/persistence.cljc][examples/common/src/todo/plugins/persistence.cljc]], this plugin defines the contract:
+
+#+BEGIN_SRC clojure
+(def plugin
+  (pi/plugin
+   {:id :todo/persistence
+    :beans
+    {::load-fn  [:= (fn [] {:tasks {} :next-id 1})]  ; Default: no-op
+     ::store-fn [:= (fn [_] nil)]                    ; Default: no-op
+     ::delete-fn [:= (fn [_] nil)]}}))               ; Default: no-op
+#+END_SRC
+
+*** Different Implementations
+
+Each example provides its own implementation of this interface:
+
+| Example | Implementation | Persistence |
+|---------|---------------|-------------|
+| Browser | ~todo-browser.plugins.local-storage~ | Browser LocalStorage |
+| JVM TUI | ~todo-jvm-tui.plugins.memory-store~ | In-memory atom |
+| JVM Server | ~todo-jvm-server.plugins.memory-store~ | In-memory atom |
+| Node.js TUI | ~todo-node-tui.plugins.memory-store~ | In-memory atom |
+| Node.js Server | ~todo-node-server.plugins.memory-store~ | In-memory atom |
+
+This demonstrates Plin's power: the same application logic works across completely different platforms by swapping plugin implementations!
+
+* Architectural Philosophy
+
+** The Problem: Globals and Hidden Dependencies
+
+As applications scale, the "Import Graph" tends to resemble a plate of spaghetti. Components import stores, stores import services, services import utilities, and circular dependencies abound. Refactoring becomes risky, and testing in isolation becomes impossible.
+
+The root cause? *Hidden dependencies through global state and direct imports*.
+
+** The Solution: Explicit Dependencies and Pure Functions
+
+Plin takes a functional programming approach: *dependencies are passed as arguments rather than imported globally*.
+
+*** Programming Functionally at Scale
+
+Dependency Injection enables a more functional style at the application level:
+
+#+BEGIN_SRC clojure
+;; Traditional: Dependencies via imports and globals
+(ns my-app.dashboard
+  (:require [my-app.db :as db]        ; Direct import
+            [my-app.config :as config])) ; Global state
+
+(defn dashboard-view []
+  (let [user (db/current-user)        ; Implicit dependency
+        theme (config/get :theme)]     ; Implicit global
+    [:div {:class theme}
+     [:h1 "Welcome " (:name user)]]))
+
+;; Functional style: All dependencies are explicit arguments
+(ns my-app.dashboard)
+
+(defn dashboard-view [current-user theme]  ; Everything is passed in
+  [:div {:class theme}
+   [:h1 "Welcome " (:name current-user)]])
+#+END_SRC
+
+*Benefits:*
+
+1. *Pure Functions*: ~dashboard-view~ is a pure function - same inputs always produce same outputs
+2. *No Hidden State*: You can see exactly what the function needs by looking at its signature
+3. *Trivial Testing*: Just call ~(dashboard-view mock-user "dark")~ - no mocking framework needed
+4. *Referential Transparency*: The function can be understood in isolation
+5. *Parallelizable*: No shared mutable state means no race conditions
+
+*** Local State: A Pragmatic Choice
+
+In practice, many modules share state between functions using atoms at the namespace level. This is a common and valid pattern, especially when the state is truly local to a small, cohesive file:
+
+#+BEGIN_SRC clojure
+;; Common pattern: Shared atom between functions in the same file
+(ns my-app.ui-state)
+
+(defonce app-state (atom {:selected-index 0
+                          :filter :all
+                          :input-value ""}))
+
+(defn select-item [idx]
+  (swap! app-state assoc :selected-index idx))
+
+(defn set-filter [f]
+  (swap! app-state assoc :filter f))
+
+(defn get-current-state []
+  @app-state)
+#+END_SRC
+
+This approach is pragmatic and works well when:
+- The state is truly local to the module
+- The functions that share it are cohesive and live in the same file
+- Testing the module in isolation is not a primary concern
+
+However, this pattern can also be handled through injection if you prefer more explicit dependencies or need better testability:
+
+#+BEGIN_SRC clojure
+;; Alternative: State as an injected dependency
+(ns my-app.ui-state)
+
+(defn make-ui-state []
+  (atom {:selected-index 0
+         :filter :all
+         :input-value ""}))
+
+(defn select-item [state idx]
+  (swap! state assoc :selected-index idx))
+
+(defn set-filter [state f]
+  (swap! state assoc :filter f))
+
+;; Plin wiring: the atom itself becomes a bean
+(def plugin
+  (plin/plugin
+   {:beans
+    {::state      [make-ui-state]              ; Create the atom once
+     ::select-item [partial select-item ::state]  ; Inject into functions
+     ::set-filter  [partial set-filter ::state]}}))
+#+END_SRC
+
+With Plin, you choose what's appropriate for each module. Both approaches are valid - the framework supports either style.
+
+*** The Wiring Happens Once
+
+Plin solves this by introducing a strict separation between *Wiring Time* and *Runtime*:
+
+- *Wiring Time*: Dependencies are declared as data and resolved once at startup
+- *Runtime*: Functions receive their dependencies as arguments - no imports, no globals
+
+** The Two-Phase Boot Process
 
 1. *The Pluggable Phase (Wiring & Resolution)*
    - *Input*: A list of Plugin Maps.
@@ -26,9 +184,52 @@ Plin solves this by introducing a strict separation between *Wiring Time* and *R
      - *Injection*: Dependencies are resolved and injected into functions via arguments or partial application.
    - *Output*: A running system where components hold references to their dependencies, not to global namespaces.
 
-** Core Concepts
+* Core Concepts
 
-*** 2.1 The Plugin Map
+** Dependency Injection in Practice
+
+Here's a concrete example from the Todo examples showing how dependency injection works:
+
+#+BEGIN_SRC clojure
+;; Traditional approach: dependencies via imports
+(ns traditional-example
+  (:require [my-app.storage :as storage]))  ; Direct import
+
+(defn add-task-handler [request]
+  (let [title (get-in request [:params :title])
+        task-list (storage/load)              ; Implicit dependency
+        new-list (add-task task-list title)]
+    (storage/save new-list)                   ; Implicit dependency
+    {:status 302 :headers {"Location" "/"}}))
+
+;; Functional approach: dependencies as arguments
+(ns functional-example)
+
+(defn add-task-handler [load-fn store-fn request]  ; Dependencies explicit
+  (let [title (get-in request [:params :title])
+        task-list (load-fn)                   ; Just a function argument
+        new-list (add-task task-list title)]
+    (store-fn new-list)                       ; Just a function argument
+    {:status 302 :headers {"Location" "/"}}))
+
+;; How Plin wires it:
+(def plugin
+  (plin/plugin
+   {:beans
+    {::handler
+     ;; Partial application: pre-fill load-fn and store-fn
+     [partial add-task-handler 
+      ::persistence/load-fn    ; Injected from persistence plugin
+      ::persistence/store-fn]}})) ; Injected from persistence plugin
+
+;; The container builds: (partial add-task-handler real-load-fn real-store-fn)
+;; At runtime: just call (handler request) - all dependencies already injected!
+#+END_SRC
+
+*Key insight:* The wiring happens once at startup. At runtime, ~add-task-handler~ is a pure function that operates on its arguments.
+
+** The Plugin Map
+
 A Plugin is the atomic unit of modularity. It is a Clojure map containing metadata, dependencies, and definitions.
 
 #+BEGIN_SRC clojure
@@ -52,23 +253,25 @@ A Plugin is the atomic unit of modularity. It is a Clojure map containing metada
     :contributions {::sidebar/items [{:label "Login" :href "/login"}]}}))
 #+END_SRC
 
-** 2.2 Interface vs. Implementation
+** Interface vs. Implementation
+
 To enforce boundaries, Plin strongly encourages the *Interface/Implementation Pattern*.
 
-- *Interface Plugin (`i-feature`)*:
+- *Interface Plugin (~i-feature~)*:
     - Defines the *Contract*.
     - Declares Extension Points.
     - Defines abstract Beans (often with no-op or mock defaults).
     - Contains *NO* business logic or heavy UI code.
-    - *Example*: `i-auth` defines `::user-service` (a map of functions) and `::login-form` (a nil placeholder).
+    - *Example*: ~i-auth~ defines ~::user-service~ (a map of functions) and ~::login-form~ (a nil placeholder).
 
-- *Implementation Plugin (`p-feature`)*:
+- *Implementation Plugin (~p-feature~)*:
     - Depends on the Interface.
     - Provides the *Logic*.
     - Overrides the abstract Beans with concrete implementations.
-    - *Example*: `p-auth-firebase` overrides `::i-auth/user-service` with Firebase logic.
+    - *Example*: ~p-auth-firebase~ overrides ~::i-auth/user-service~ with Firebase logic.
 
-*** 2.3 Beans & Injection Syntax
+** Beans & Injection Syntax
+
 Beans are the runtime components managed by the container. Plin uses a concise vector syntax (DSL) to define them.
 
 | Syntax | Type | Description |
@@ -79,11 +282,12 @@ Beans are the runtime components managed by the container. Plin uses a concise v
 
 *Note on Keys*: All keys must be fully qualified keywords (e.g., ~::my-service~). This prevents collisions in the global container.
 
-** Developer Tutorial: Building a "Task Manager"
+* Developer Tutorial: Building a "Task Manager"
 
 We will build a modular Task Manager where the logic, the UI, and the dashboard integration are decoupled.
 
-*** Step 1: The Interface (`i-tasks`)
+** Step 1: The Interface (~i-tasks~)
+
 First, we define the contract. We declare that a "Task Service" and a "Task List UI" exist, but we don't implement them.
 
 #+BEGIN_SRC clojure
@@ -117,8 +321,9 @@ First, we define the contract. We declare that a "Task Service" and a "Task List
      [:= []]}}))
 #+END_SRC
 
-*** Step 2: The Implementation (`p-tasks-memory`)
-Now we implement the logic using an in-memory atom. Note that we depend on `i-tasks`.
+** Step 2: The Implementation (~p-tasks-memory~)
+
+Now we implement the logic using an in-memory atom. Note that we depend on ~i-tasks~.
 
 #+BEGIN_SRC clojure
 (ns my-app.p-tasks-memory
@@ -166,8 +371,9 @@ Now we implement the logic using an in-memory atom. Note that we depend on `i-ta
      [partial task-list-view ::i-tasks/service]}}))
 #+END_SRC
 
-*** Step 3: A Consumer Plugin (`p-dashboard`)
-This plugin uses the Task List UI, but it has no idea that `p-tasks-memory` exists. It only knows `i-tasks`.
+** Step 3: A Consumer Plugin (~p-dashboard~)
+
+This plugin uses the Task List UI, but it has no idea that ~p-tasks-memory~ exists. It only knows ~i-tasks~.
 
 #+BEGIN_SRC clojure
 (ns my-app.p-dashboard
@@ -195,57 +401,150 @@ This plugin uses the Task List UI, but it has no idea that `p-tasks-memory` exis
      [partial dashboard-view ::i-tasks/list-ui]}}))
 #+END_SRC
 
-** Advanced Patterns
+** Summary: Pure Functions All the Way Down
 
-*** 4.1 Reactivity and Partial Application
-A common pitfall in DI with React is losing reactivity.
+Notice what we achieved:
+- ~make-service~ takes default-tasks as an argument (pure factory)
+- ~task-list-view~ takes service as an argument (pure component)
+- ~dashboard-view~ takes task-list-component as an argument (pure component)
 
-**Wrong:**
+*No function imports global state or other namespaces!* Everything flows through arguments.
+
+Local state (~r/atom~ in ~make-service~) is a *local implementation detail* - the outside world just sees a map of functions. You could replace it with a pure implementation if needed:
+
+#+BEGIN_SRC clojure
+;; Alternative: Pure implementation (no atoms!)
+(defn make-pure-service [initial-tasks]
+  {:add  (fn [tasks task] (conj tasks task))
+   :list (fn [tasks] tasks)})
+#+END_SRC
+
+This is the essence of functional programming at scale: *composition of pure functions, with state relegated to the edges*.
+
+* Advanced Patterns
+
+** Testing with Explicit Dependencies
+
+Because dependencies are explicit arguments, testing becomes straightforward:
+
+#+BEGIN_SRC clojure
+;; The function under test (from earlier example)
+(defn add-task-handler [load-fn store-fn request]
+  (let [title (get-in request [:params :title])
+        task-list (load-fn)
+        new-list (add-task task-list title)]
+    (store-fn new-list)
+    {:status 302 :headers {"Location" "/"}}))
+
+;; Testing: Just pass mock functions!
+(deftest test-add-task-handler
+  (let [stored-value (atom nil)
+        mock-load  (fn [] {:tasks {} :next-id 1})
+        mock-store (fn [v] (reset! stored-value v))
+        request    {:params {:title "Test Task"}}]
+    
+    ;; Call the function with mocks
+    (add-task-handler mock-load mock-store request)
+    
+    ;; Verify the result
+    (is (= "Test Task" 
+           (get-in @stored-value [:tasks 1 :title])))))
+#+END_SRC
+
+*No mocking framework needed!* Just pass different functions. This is the power of treating functions as data.
+
+*** Compare to Traditional Approach
+
+#+BEGIN_SRC clojure
+;; Traditional: Must use mocking framework or test doubles
+(deftest test-add-task-handler-traditional
+  (with-redefs [storage/load  (fn [] ...)    ; Redef global
+                storage/save  (fn [v] ...)]  ; Redef global
+    (add-task-handler request)))
+
+;; Plin: Just call the function with different arguments!
+(deftest test-add-task-handler-plin
+  (add-task-handler mock-load mock-store request))
+#+END_SRC
+
+** Reactivity and Partial Application
+
+A common pitfall in DI with React/Reagent is losing reactivity.
+
+*Eager evaluation (may lose reactivity):*
 #+BEGIN_SRC clojure
 :beans {::my-ui [my-component dependency]}
 #+END_SRC
-This calls `(my-component dependency)` *once* at build time. The result (a static Hiccup vector) is stored in the container. If the dependency is an atom, the component won't re-render when it changes because the dereference happened during the build.
+This calls ~(my-component dependency)~ *once* at build time. The result (a static Hiccup vector) is stored in the container. If the dependency is an atom, the component won't re-render when it changes because the dereference happened during the build.
 
-**Correct:**
+*Deferred evaluation (preserves reactivity):*
 #+BEGIN_SRC clojure
 :beans {::my-ui [partial my-component dependency]}
 #+END_SRC
-This stores a *function* `(partial my-component dependency)` in the container. When Reagent renders `[::my-ui]`, it executes the function, establishing the reactive bindings correctly.
+This stores a *function* ~(partial my-component dependency)~ in the container. When Reagent renders ~[::my-ui]~, it executes the function, establishing the reactive bindings correctly.
 
-*** 4.2 Extension Handlers
-The `:handler` key in an extension definition takes a function `(fn [db contributions] -> db)`.
+** Extension Handlers
+
+The ~:handler~ key in an extension definition takes a function ~(fn [db contributions] -> db)~
 Plin provides helpers for common patterns:
 
-- *`plin/collect-all`**: Flattens all contributions into a vector.
+- *~plin/collect-all~**: Flattens all contributions into a vector.
   - *Use case*: Menu items, Route definitions, Listeners.
-- *`plin/collect-last`**: Takes the last contribution (LIFO).
+- *~plin/collect-last~**: Takes the last contribution (LIFO).
   - *Use case*: Overriding a default configuration or a singleton widget.
-- *`plin/collect-data`**: Like `collect-all` but optimized for static data (avoids runtime constructor overhead).
+- *~plin/collect-data~**: Like ~collect-all~ but optimized for static data (avoids runtime constructor overhead).
 
-*** 4.3 The System Debugger
+** The System Debugger
+
 Plin includes a powerful introspection tool. Since the entire app is data, we can visualize it.
 - *Plugin Graph**: See how plugins depend on each other.
 - *Bean Graph**: See how beans are injected.
 - *State Inspector**: View the current value of atoms inside the container.
 
-To access it, ensure `plugins.p-debug` is loaded and navigate to `#/debug`.
+To access it, ensure ~plugins.p-debug~ is loaded and navigate to ~#/debug~.
 
-** Best Practices
+* Project Structure
+
+#+BEGIN_SRC
+plin/
+├── bin/
+│   ├── run-example              # Interactive script to run all examples
+│   └── generate-browser-html.clj # Generates browser example HTML
+├── examples/
+│   ├── browser-reagent/         # Example 1: Browser with Reagent
+│   ├── jvm-tui/                 # Example 2: JVM Terminal UI
+│   ├── jvm-server/              # Example 3: JVM HTTP Server
+│   ├── node-tui/                # Example 4: Node.js Terminal UI
+│   ├── node-server/             # Example 5: Node.js HTTP Server
+│   └── common/                  # Shared domain and plugins
+│       └── src/todo/
+│           ├── domain.cljc      # Task domain logic (shared)
+│           └── plugins/
+│               ├── persistence.cljc  # Persistence interface
+│               ├── deadlines.cljc    # Deadline/due-date utilities
+│               └── calendar.cljc     # Calendar view data preparation
+├── src/plin/
+│   ├── core.cljc                # Core plugin system
+│   └── boot.cljc                # Bootstrap and lifecycle
+└── README.org                   # This file
+#+END_SRC
+
+* Best Practices
 
 1.  *Naming*:
-    - Interface plugins: `i-name`
-    - Implementation plugin: `p-name`
+    - Interface plugins: ~i-name~
+    - Implementation plugin: ~p-name~
 2.  *Granularity*:
     - Plugins should be small and focused.
     - If a plugin does two unrelated things, split it.
 3.  *No Cross-Implementation Imports*:
-    - `p-dashboard` should NEVER require `p-tasks`. It should only require `i-tasks`.
+    - ~p-dashboard~ should NEVER require ~p-tasks~. It should only require ~i-tasks~.
     - If you break this rule, you lose the ability to swap implementations.
 4.  *Fully Qualified Keys*:
-    - Always use `::key` (which expands to `:current.ns/key`).
-    - When referencing another plugin's bean, use `::alias/key`.
+    - Always use ~::key~ (which expands to ~:current.ns/key~).
+    - When referencing another plugin's bean, use ~::alias/key~.
 
-** License
+* License
 
 Copyright Coutego © 2025
 Distributed under the EUPL License.

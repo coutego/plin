@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Wrapper script to run the Plin examples runner
+# Usage: ./bin/run-example
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR/.." || exit 1
+
+if ! command -v bb &> /dev/null; then
+    echo "Error: Babashka (bb) is not installed."
+    echo "Please install it from: https://github.com/babashka/babashka#installation"
+    exit 1
+fi
+
+bb bin/run-example.clj "$@"

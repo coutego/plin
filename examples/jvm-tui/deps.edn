@@ -1,0 +1,10 @@
+{:paths ["src"]
+ :deps {org.clojure/clojure {:mvn/version "1.11.1"}
+        org.clojure/core.async {:mvn/version "1.6.681"}
+        metosin/malli {:mvn/version "0.13.0"}
+        com.googlecode.lanterna/lanterna {:mvn/version "3.1.1"}
+        plin/plin {:local/root "../.."}
+        todo/common {:local/root "../common"}}
+ 
+ :aliases
+ {:run {:main-opts ["-m" "todo-jvm-tui.main"]}}}
